@@ -1,7 +1,7 @@
 {
   "name": "chess-project",
   "version": "1.0.0",
-  "description": "Chess project for full-stack planning on Render",
+  "description": "Chess project deployment on Render",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -1,3 +1,18 @@
+(function() {
+    // ⚠️ WASM 파일명을 'stockfish.wasm'으로 명확히 지정합니다.
+    const WASM_FILE = 'stockfish.wasm'; 
+    
+    // Module 객체가 있다면 locateFile 함수를 재정의합니다.
+    if (typeof Module !== 'undefined' && Module.locateFile === undefined) {
+        Module.locateFile = function(path, prefix) {
+            if (path.endsWith('.wasm')) {
+                // Render 서버의 루트 폴더를 기준으로 WASM 파일 경로를 명시적으로 반환합니다.
+                return '/' + WASM_FILE;
+            }
+            return path;
+        };
+    }
+})();
 /*!
  * Stockfish.js 16 (c) 2023, Chess.com, LLC
  * https://github.com/nmrugg/stockfish.js
