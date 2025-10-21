@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>ELO 조정 가능한 Stockfish 체스 대국</title>
+    
+    <link rel="stylesheet" href="chessboardjs/css/chessboard-1.0.0.min.css">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Stockfish ELO 체스 대국</h1>
+    
+    <div id="board" style="width: 400px"></div>
+    
+    <div class="controls">
+        <label for="elo-slider">ELO 설정:</label>
+        <input type="range" id="elo-slider" min="1350" max="3190" value="1500" step="50">
+        <span id="elo-display">1500</span>
+        <button id="start-button">새 게임 시작</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    
+    <script src="chessboardjs/js/chessboard-1.0.0.min.js"></script>
+    
+    <script src="chess.js"></script> 
+    
+    <script src="stockfish.js"></script>
+    
+    <script src="script.js"></script>
+</body>
+</html>
