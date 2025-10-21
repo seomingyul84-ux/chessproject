@@ -1,15 +1,26 @@
-// server.js 파일 내용
+// server.js 파일 최종 버전
 
 const express = require('express');
 const path = require('path');
+const mime = require('mime'); // mime 라이브러리 로드
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 프로젝트 루트 폴더의 모든 파일을 정적 파일로 서비스
-app.use(express.static(path.join(__dirname, '/'))); 
+// WASM 파일 MIME 타입 명시 설정
+mime.define({'application/wasm': ['wasm']});
 
-// 모든 요청에 대해 index.html 파일을 응답 (SPA 기본 구조)
+// 정적 파일을 서비스하고 WASM 파일에 대한 헤더를 설정합니다.
+app.use(express.static(path.join(__dirname, '/'), { 
+    setHeaders: (res, filePath) => {
+        // .wasm 확장자 파일에 대해 Content-Type을 강제로 application/wasm으로 설정
+        if (filePath.endsWith('.wasm')) {
+            res.setHeader('Content-Type', 'application/wasm');
+        }
+    }
+})); 
+
+// 모든 요청에 대해 index.html을 응답하여 클라이언트 사이드 라우팅을 지원합니다.
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html')); 
 });
