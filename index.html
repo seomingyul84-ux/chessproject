@@ -2,32 +2,29 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>ELO 조정 가능한 Stockfish 체스 대국</title>
-    
-    <link rel="stylesheet" href="chessboardjs/css/chessboard-1.0.0.min.css">
-    
+    <title>API 기반 체스 프로젝트</title>
+    <link rel="stylesheet" href="https://unpkg.com/chessboardjs@0.3.0/dist/chessboard-0.3.0.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Stockfish ELO 체스 대국</h1>
+    <h1>Chess API 프로젝트</h1>
+    <div id="myBoard" style="width: 400px"></div>
     
-    <div id="board" style="width: 400px"></div>
-    
-    <div class="controls">
-        <label for="elo-slider">ELO 설정:</label>
-        <input type="range" id="elo-slider" min="1350" max="3190" value="1500" step="50">
-        <span id="elo-display">1500</span>
-        <button id="start-button">새 게임 시작</button>
-    </div>
+    <label for="difficulty">난이도 (Depth):</label>
+    <select id="difficulty">
+        <option value="6">쉬움 (Depth 6)</option>
+        <option value="10" selected>보통 (Depth 10)</option>
+        <option value="15">어려움 (Depth 15)</option>
+    </select>
+    <button onclick="computerMove()">컴퓨터 수 두기 (테스트)</button>
+    <p id="status">상태: 새 게임 시작</p>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
-    <script src="chessboardjs/js/chessboard-1.0.0.min.js"></script>
-    
-    <script src="chess.js"></script> 
-    
-    <script src="stockfish.js"></script>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
+    <script src="https://unpkg.com/chessboardjs@0.3.0/dist/chessboard-0.3.0.min.js"></script>
+
     <script src="script.js"></script>
 </body>
 </html>
