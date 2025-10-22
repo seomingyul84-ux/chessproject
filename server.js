@@ -1,26 +1,17 @@
-// server.js 파일 최종 버전 (WASM MIME 타입 및 404 처리 개선)
-
 const express = require('express');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 1. WASM MIME 타입 처리 및 정적 파일 서비스
-app.use(express.static(path.join(__dirname, '/'), { 
-    setHeaders: (res, filePath) => {
-        // .wasm 확장자 파일에 대해 Content-Type을 강제로 application/wasm으로 설정
-        if (filePath.endsWith('.wasm')) {
-            res.setHeader('Content-Type', 'application/wasm');
-        }
-    }
-})); 
+// WASM 관련 설정 (MIME 타입)을 모두 제거하고,
+// 현재 디렉토리의 파일만 정적으로 서비스합니다.
+// 이제 클라이언트(브라우저)는 외부 API로 통신합니다.
+app.use(express.static(path.join(__dirname, '/'))); 
 
-// 2. 404 Not Found 핸들러 (HTML 응답 방지)
-// 정적 파일에서 찾지 못한 모든 요청은 404를 반환하도록 합니다.
+// 404 Not Found 핸들러 유지 (선택 사항이지만 권장)
 app.use((req, res) => {
-    // WASM 파일 요청 실패 시, HTML(3c 21 44 4f) 대신 명시적인 에러 메시지를 반환합니다.
-    res.status(404).send('404 Not Found. Check your file paths (especially WASM).');
+    res.status(404).send('404 Not Found. API 호출은 클라이언트(script.js)에서 이루어집니다.');
 });
 
 

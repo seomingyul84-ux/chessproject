@@ -1,114 +1,98 @@
-// script.js 파일 - 최종
+// =========================================================
+// 1. 상수 정의 (Chess-API.com 정보)
+// =========================================================
 
-// Global Variables for the Game
-var game = new Chess(); 
-var board = null;       
-var engine = null;      
-var START_TIME = 1000;  
+const CHESS_API_URL = "https://chess-api.com/v1"; 
+// 이 API는 인증 키가 필요 없으므로, CHESS_API_KEY는 정의하지 않습니다.
 
-var eloSlider = document.getElementById('elo-slider');
-var eloDisplay = document.getElementById('elo-display');
-var startButton = document.getElementById('start-button');
+// =========================================================
+// 2. 난이도 설정 (Depth 기반 ELO 난이도 간접 조절)
+// =========================================================
 
-// --- Initialization and Engine Setup ---
+// 사용자가 설정한 난이도를 이 변수에 연결해야 합니다.
+// (예: 드롭다운이나 슬라이더 값)
+// 18이 가장 강하며 (약 2750 ELO), 12가 기본 (약 2350 ELO)입니다.
+// 쉬운 난이도를 위해 5~8 사이로 설정할 수 있습니다.
+let selectedDifficultyDepth = 10; // 초기 난이도: Depth 10으로 설정 (약 2000 ELO 추정)
 
-eloSlider.oninput = function() {
-    eloDisplay.textContent = this.value;
+// =========================================================
+// 3. API 통신 함수
+// =========================================================
+
+// POST 요청을 위한 기본 Fetch 함수
+async function postChessApi(data = {}) {
+    const response = await fetch(CHESS_API_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data),
+    });
+    return response.json();
 }
 
-function initEngine() {
-    if (engine) {
-        engine.terminate(); 
-    }
-    
-    // Web Worker 생성 (Web Server 환경에서 정상 작동)
-    engine = new Worker('stockfish.js'); 
-    
-    engine.onmessage = function (event) {
-        var line = event.data;
-        
-        if (line.startsWith('bestmove')) {
-            var bestMove = line.split(' ')[1];
-            
-            if (bestMove === '(none)') {
-                alert('Game Over: Checkmate or Stalemate!');
-                return;
-            }
+// =========================================================
+// 4. 엔진 호출 및 최적 수 반환 함수
+// =========================================================
 
-            game.move(bestMove, { sloppy: true });
-            board.position(game.fen());
-            
-            if (game.game_over()) {
-                alert('게임 종료! 컴퓨터 승리.');
-            }
-        }
+// FEN과 Depth를 받아 최적의 수를 반환합니다.
+async function getBestMoveFromChessApi(fen, selectedDepth) {
+    console.log(`API에 FEN 요청: ${fen}, Depth: ${selectedDepth}`);
+
+    const data = {
+        fen: fen,
+        depth: selectedDepth, // 난이도 조절
+        maxThinkingTime: 50,  // (선택 사항: 밀리초)
     };
-    
-    engine.postMessage('uci'); 
-    engine.postMessage('isready');
-}
 
-function setEloAndStartGame() {
-    var selectedElo = eloSlider.value;
-    
-    engine.postMessage('setoption name UCI_LimitStrength value true');
-    engine.postMessage(`setoption name UCI_Elo value ${selectedElo}`); 
-    
-    game = new Chess();
-    board.position('start');
-    engine.postMessage('ucinewgame');
-    engine.postMessage('isready');
-    
-    console.log(`새 게임이 ELO ${selectedElo}로 시작되었습니다.`);
-}
+    try {
+        const responseData = await postChessApi(data);
 
-// --- Game Interaction ---
-
-function onDrop (source, target) {
-    var move = game.move({
-        from: source,
-        to: target,
-        promotion: 'q' 
-    });
-
-    if (move === null) return 'snapback';
-
-    if (game.game_over()) {
-        alert('게임 종료! 사용자 승리: ' + (game.in_checkmate() ? '체크메이트' : '무승부'));
-        return;
+        // API는 'move' 또는 'bestmove' 타입을 반환합니다.
+        if (responseData.type === 'move' || responseData.type === 'bestmove') {
+            console.log("API 응답:", responseData);
+            // 최적의 수 (SAN 또는 LAN) 반환
+            // 여기서는 LAN(Long Algebraic Notation, 예: 'g1f3')을 사용하겠습니다.
+            return responseData.lan; 
+        } else {
+            console.error("API 오류 또는 정보 메시지:", responseData.text);
+            return null;
+        }
+    } catch (error) {
+        console.error("API 통신 오류:", error);
+        return null;
     }
-    
-    window.setTimeout(makeEngineMove, 250);
-};
-
-function onSnapEnd () {
-    board.position(game.fen());
-};
-
-function makeEngineMove() {
-    var fen = game.fen(); 
-    
-    engine.postMessage(`position fen ${fen}`); 
-    engine.postMessage(`go movetime ${START_TIME}`);
 }
 
-// Chessboard 설정
-var config = {
-    draggable: true,
-    position: 'start',
-    onDrop: onDrop,
-    onSnapEnd: onSnapEnd,
-    // 이미지 경로 설정: 'chessboardjs/img/' 폴더 아래에 기물 파일들이 직접 위치해야 함
-    pieceTheme: 'chessboardjs/img/{piece}.png' 
-};
 
-$(document).ready(function() {
-    board = Chessboard('board', config);
+// =========================================================
+// 5. 게임 로직 (예시)
+// =========================================================
+
+// chess.js 인스턴스는 html 파일에서 로드된 라이브러리에 의해 생성된다고 가정합니다.
+const chess = new Chess(); 
+// let board = ChessBoard('myBoard', config); // chessboard.js를 사용한다고 가정
+
+// 예시: 사용자가 수를 둔 후 컴퓨터 차례가 되었을 때
+async function computerMove() {
+    // 1. 현재 FEN을 가져옵니다.
+    const currentFen = chess.fen();
     
-    startButton.addEventListener('click', function() {
-        initEngine(); 
-        setTimeout(setEloAndStartGame, 500); 
-    });
+    // 2. API를 호출하여 최적 수를 얻습니다.
+    const bestMoveLan = await getBestMoveFromChessApi(currentFen, selectedDifficultyDepth);
+    
+    if (bestMoveLan) {
+        // 3. chess.js를 이용해 수를 둡니다.
+        chess.move(bestMoveLan, { sloppy: true }); 
+        
+        // 4. 보드를 업데이트합니다.
+        // board.position(chess.fen()); 
+        
+        console.log(`컴퓨터의 수: ${bestMoveLan}`);
+    } else {
+        console.warn("엔진이 수를 찾지 못했습니다.");
+    }
+}
 
-    initEngine();
-});
+// 이 함수를 사용자 수를 처리하는 이벤트 핸들러에서 호출해야 합니다.
+// (예: onDrop 함수 내에서)
