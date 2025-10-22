@@ -4,33 +4,29 @@
 
 const CHESS_API_URL = "https://chess-api.com/v1"; 
 
-// chess.js 및 chessboard.js 인스턴스 초기화
 const chess = new Chess();
-let board = null; // chessboard.js 인스턴스
+let board = null; 
+let playerColor = 'w'; // 사용자의 선택 색상 ('w' 또는 'b')
 
 // =========================================================
-// 2. API 통신 및 난이도 조절 함수 (Depth 사용)
+// 2. API 통신 및 난이도 조절 함수
 // =========================================================
 
-// POST 요청을 위한 기본 Fetch 함수
 async function postChessApi(data = {}) {
     const response = await fetch(CHESS_API_URL, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
     });
     return response.json();
 }
 
-// FEN과 Depth를 받아 최적의 수를 반환합니다.
 async function getBestMoveFromChessApi(fen, selectedDepth) {
     console.log(`API에 FEN 요청: ${fen}, Depth: ${selectedDepth}`);
 
     const data = {
         fen: fen,
-        depth: selectedDepth, // 난이도 조절
+        depth: selectedDepth,
         maxThinkingTime: 50,
     };
 
@@ -39,7 +35,7 @@ async function getBestMoveFromChessApi(fen, selectedDepth) {
 
         if (responseData.type === 'move' || responseData.type === 'bestmove') {
             console.log("API 응답:", responseData);
-            return responseData.lan; // Long Algebraic Notation (예: 'g1f3') 반환
+            return responseData.lan; 
         } else {
             document.getElementById('status').textContent = `API 오류: ${responseData.text}`;
             return null;
@@ -57,23 +53,32 @@ async function getBestMoveFromChessApi(fen, selectedDepth) {
 
 // 사용자가 수를 둔 후 호출되는 함수
 function onDrop (source, target) {
+    // ⚠️ 현재 턴이 플레이어의 색상이 아니면 수를 둘 수 없습니다.
+    if (chess.turn() !== playerColor) {
+        return 'snapback'; 
+    }
+    
     const move = chess.move({
         from: source,
         to: target,
         promotion: 'q' 
     });
 
-    if (move === null) return 'snapback'; // 유효하지 않은 수
+    if (move === null) return 'snapback';
 
     updateStatus();
-    window.setTimeout(computerMove, 250); // 컴퓨터 차례
+    // 다음 턴은 무조건 컴퓨터의 턴입니다.
+    window.setTimeout(computerMove, 250); 
 }
 
 // 컴퓨터 수 두기 함수
 async function computerMove() {
-    const currentFen = chess.fen();
+    // ⚠️ 현재 턴이 플레이어의 턴이면 수를 두지 않습니다.
+    if (chess.turn() === playerColor) {
+        return;
+    }
     
-    // UI에서 선택된 난이도 가져오기
+    const currentFen = chess.fen();
     const difficultySelect = document.getElementById('difficulty');
     const selectedDifficultyDepth = parseInt(difficultySelect.value); 
 
@@ -83,12 +88,36 @@ async function computerMove() {
     
     if (bestMoveLan) {
         chess.move(bestMoveLan, { sloppy: true }); 
-        board.position(chess.fen()); // 보드 업데이트
+        board.position(chess.fen());
         document.getElementById('status').textContent = `컴퓨터가 ${bestMoveLan} 수를 두었습니다.`;
     } else {
         document.getElementById('status').textContent = "엔진이 수를 찾지 못했습니다.";
     }
     updateStatus();
+}
+
+// 색상 변경 또는 버튼 클릭 시 게임을 새로 시작하는 함수
+function startNewGame() {
+    const colorSelect = document.getElementById('playerColor');
+    playerColor = colorSelect.value;
+    
+    // 게임 리셋
+    chess.reset(); 
+    
+    // 보드 오리엔테이션 설정
+    if (playerColor === 'b') {
+        board.orientation('black');
+    } else {
+        board.orientation('white');
+    }
+    board.position('start'); 
+    
+    updateStatus();
+    
+    // 흑을 선택했다면, 컴퓨터가 먼저 수를 둡니다.
+    if (playerColor === 'b') {
+        computerMove();
+    }
 }
 
 // 상태 업데이트 함수
@@ -119,6 +148,12 @@ const config = {
 
 // 페이지 로드 시 보드 초기화
 $(document).ready(function() {
+    // 보드 초기화 및 전역 변수에 할당
     board = ChessBoard('myBoard', config);
-    updateStatus();
+    
+    // 초기 게임 시작 (WASM 오류 때문에 바로 startNewGame 호출)
+    startNewGame(); 
+    
+    // 색상 변경 이벤트 리스너 추가
+    document.getElementById('playerColor').addEventListener('change', startNewGame);
 });
