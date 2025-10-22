@@ -5,7 +5,6 @@
 const CHESS_API_URL = "https://chess-api.com/v1"; 
 
 // chess.js 및 chessboard.js 인스턴스 초기화
-// 이 코드는 jQuery와 라이브러리가 로드된 후 실행됩니다.
 const chess = new Chess();
 let board = null; // chessboard.js 인스턴스
 
@@ -40,7 +39,7 @@ async function getBestMoveFromChessApi(fen, selectedDepth) {
 
         if (responseData.type === 'move' || responseData.type === 'bestmove') {
             console.log("API 응답:", responseData);
-            return responseData.lan; 
+            return responseData.lan; // Long Algebraic Notation (예: 'g1f3') 반환
         } else {
             document.getElementById('status').textContent = `API 오류: ${responseData.text}`;
             return null;
@@ -53,7 +52,7 @@ async function getBestMoveFromChessApi(fen, selectedDepth) {
 }
 
 // =========================================================
-// 5. 게임 로직 및 이벤트 핸들러
+// 3. 게임 로직 및 이벤트 핸들러
 // =========================================================
 
 // 사용자가 수를 둔 후 호출되는 함수
@@ -64,7 +63,7 @@ function onDrop (source, target) {
         promotion: 'q' 
     });
 
-    if (move === null) return 'snapback'; 
+    if (move === null) return 'snapback'; // 유효하지 않은 수
 
     updateStatus();
     window.setTimeout(computerMove, 250); // 컴퓨터 차례
@@ -111,12 +110,14 @@ const config = {
     draggable: true,
     position: 'start',
     onDrop: onDrop,
-    onSnapEnd: function() { board.position(chess.fen()); } 
+    onSnapEnd: function() { board.position(chess.fen()); },
+    
+    // ✅ 이미지 로딩 문제 해결: CDN에서 조각 이미지를 가져오도록 지정
+    pieceTheme: 'https://cdn.rawgit.com/oakmac/chessboardjs/v0.3.0/img/chesspieces/wikipedia/{piece}.png'
+    
 };
 
 // 페이지 로드 시 보드 초기화
-// 이 부분이 'ChessBoard is not defined' 오류의 원인이었으므로, 
-// HTML에서 라이브러리 로드가 완료되었는지 확인한 후 실행됩니다.
 $(document).ready(function() {
     board = ChessBoard('myBoard', config);
     updateStatus();
