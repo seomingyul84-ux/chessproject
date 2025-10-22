@@ -1,7 +1,7 @@
 {
   "name": "chessproject",
   "version": "1.0.0",
-  "description": "A static chess project with Node server for deployment",
+  "description": "API-based chess project deployed on Render",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

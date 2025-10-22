@@ -5,6 +5,7 @@
 const CHESS_API_URL = "https://chess-api.com/v1"; 
 
 // chess.js 및 chessboard.js 인스턴스 초기화
+// 이 코드는 jQuery와 라이브러리가 로드된 후 실행됩니다.
 const chess = new Chess();
 let board = null; // chessboard.js 인스턴스
 
@@ -39,7 +40,6 @@ async function getBestMoveFromChessApi(fen, selectedDepth) {
 
         if (responseData.type === 'move' || responseData.type === 'bestmove') {
             console.log("API 응답:", responseData);
-            // 최적의 수 (Long Algebraic Notation) 반환
             return responseData.lan; 
         } else {
             document.getElementById('status').textContent = `API 오류: ${responseData.text}`;
@@ -56,15 +56,15 @@ async function getBestMoveFromChessApi(fen, selectedDepth) {
 // 5. 게임 로직 및 이벤트 핸들러
 // =========================================================
 
-// 사용자가 수를 둔 후 호출되는 함수 (예시)
+// 사용자가 수를 둔 후 호출되는 함수
 function onDrop (source, target) {
     const move = chess.move({
         from: source,
         to: target,
-        promotion: 'q' // 간단화를 위해 항상 퀸 프로모션으로 가정
+        promotion: 'q' 
     });
 
-    if (move === null) return 'snapback'; // 유효하지 않은 수
+    if (move === null) return 'snapback'; 
 
     updateStatus();
     window.setTimeout(computerMove, 250); // 컴퓨터 차례
@@ -76,7 +76,7 @@ async function computerMove() {
     
     // UI에서 선택된 난이도 가져오기
     const difficultySelect = document.getElementById('difficulty');
-    const selectedDifficultyDepth = parseInt(difficultySelect.value);
+    const selectedDifficultyDepth = parseInt(difficultySelect.value); 
 
     document.getElementById('status').textContent = `컴퓨터가 생각 중입니다 (Depth: ${selectedDifficultyDepth})...`;
 
@@ -92,7 +92,7 @@ async function computerMove() {
     updateStatus();
 }
 
-// 상태 업데이트 함수 (체크메이트 등)
+// 상태 업데이트 함수
 function updateStatus() {
     let status = '';
     
@@ -111,10 +111,12 @@ const config = {
     draggable: true,
     position: 'start',
     onDrop: onDrop,
-    onSnapEnd: function() { board.position(chess.fen()); } // 보드가 제자리로 돌아오게 함
+    onSnapEnd: function() { board.position(chess.fen()); } 
 };
 
 // 페이지 로드 시 보드 초기화
+// 이 부분이 'ChessBoard is not defined' 오류의 원인이었으므로, 
+// HTML에서 라이브러리 로드가 완료되었는지 확인한 후 실행됩니다.
 $(document).ready(function() {
     board = ChessBoard('myBoard', config);
     updateStatus();
