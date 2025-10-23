@@ -169,8 +169,8 @@ const config = {
     onDrop: onDrop,
     onSnapEnd: function() { board.position(chess.fen()); },
     
-    // ✅ 이미지 로드 FIX: 가장 안정적인 unpkg 경로로 pieceTheme 설정
-    pieceTheme: 'https://unpkg.com/chessboard-js@1.0.0/img/chesspieces/wikipedia/{piece}.png'
+    // ✅ 이미지 로드 FIX: CDNJS 공식 경로로 pieceTheme 설정 (가장 안정적)
+    pieceTheme: 'https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png'
 };
 
 // 페이지 로드 시 보드 초기화
