@@ -5,12 +5,13 @@
 // 🚨🚨🚨 발급받은 실제 API 키와 호스트 값입니다.
 const RAPIDAPI_KEY = "98c1a1d50bmshece777cb590225ep14cbbbjsn12fcb6a75780"; 
 const RAPIDAPI_HOST = "chess-stockfish-16-api.p.rapidapi.com";
-const STOCKFISH_API_URL = "https://" + RAPIDAPI_HOST + "/best-move"; 
+// ✅ 엔드포인트 경로 수정: /chess/api
+const STOCKFISH_API_URL = "https://" + RAPIDAPI_HOST + "/chess/api"; 
 
 const chess = new Chess();
 let board = null; 
-let playerColor = 'w'; // 사용자의 선택 색상 ('w' 또는 'b')
-let isEngineThinking = false; // 엔진 계산 중 플래그 (이중 실행 방지)
+let playerColor = 'w'; 
+let isEngineThinking = false; 
 
 // =========================================================
 // 2. API 통신 및 난이도 조절 함수 (RapidAPI StockFish 16용)
@@ -18,7 +19,6 @@ let isEngineThinking = false; // 엔진 계산 중 플래그 (이중 실행 방�
 
 // POST 요청을 위한 헬퍼 함수 (Header 및 TimeOut 포함)
 async function postRapidApi(fen, selectedDepth) {
-    // fen과 depth를 Form Data 형식으로 보냅니다.
     const formBody = new URLSearchParams({
         fen: fen,
         depth: selectedDepth 
@@ -27,7 +27,7 @@ async function postRapidApi(fen, selectedDepth) {
     const fetchPromise = fetch(STOCKFISH_API_URL, {
         method: "POST",
         headers: {
-            "Content-Type": "application/x-www-form-urlencoded", // Form Data 형식
+            "Content-Type": "application/x-www-form-urlencoded", 
             "X-RapidAPI-Key": RAPIDAPI_KEY,
             "X-RapidAPI-Host": RAPIDAPI_HOST
         },
@@ -68,7 +68,6 @@ async function getBestMoveFromStockfishApi(fen, selectedDepth) {
         if (error.message.includes("Timeout")) {
             document.getElementById('status').textContent = "⚠️ 엔진이 수를 찾지 못했습니다. (API 타임아웃)";
         } else if (error.message.includes("HTTP")) {
-            // 키 오류, 구독 오류 등 RapidAPI 관련 HTTP 오류 처리
             document.getElementById('status').textContent = `API 통신 오류: ${error.message}. 키를 확인하세요.`;
         } else {
             document.getElementById('status').textContent = "API 통신 오류가 발생했습니다. (연결 실패)";
@@ -116,7 +115,7 @@ async function computerMove() {
     
     let currentFen = chess.fen(); 
 
-    // FEN 문자열 오류 방지 및 강제 수정 로직 (FEN 필드 6개 방어)
+    // FEN 문자열 오류 방지 및 강제 수정 로직
     const fenParts = currentFen.split(' ');
     if (fenParts.length < 6) {
         currentFen = currentFen + ' 0 1'; 
@@ -137,7 +136,6 @@ async function computerMove() {
     if (bestMoveLan) {
         console.log(`API에서 받은 수: ${bestMoveLan}`); 
         
-        // Stockfish API는 UCB 포맷(e2e4)을 반환하므로 chess.move()의 sloppy 옵션으로 처리
         const moveResult = chess.move(bestMoveLan, { sloppy: true }); 
         
         if (moveResult) {
@@ -151,7 +149,6 @@ async function computerMove() {
     
     isEngineThinking = false; 
     
-    // 수가 성공적으로 두어졌을 때만 상태를 업데이트하여 턴이 넘어가는 것을 방지
     if (moveWasSuccessful) {
         updateStatus();
     }
@@ -199,7 +196,7 @@ const config = {
     onDrop: onDrop,
     onSnapEnd: function() { board.position(chess.fen()); },
     
-    // 로컬 이미지 경로 사용 (이전 이미지 오류 해결용): 'img' 폴더 바로 아래에 파일이 있다고 가정
+    // 로컬 이미지 경로 사용: 'img' 폴더 바로 아래에 파일이 있다고 가정
     pieceTheme: 'img/{piece}.png'
 };
 
