@@ -76,7 +76,7 @@ function onDrop (source, target) {
 
 // 컴퓨터 수 두기 함수
 async function computerMove() {
-    // 1. 게임 종료/계산 중/플레이어 턴 확인
+    // 1. 게임 종료/계산 중/플레이어 턴 확인 (수가 멈추는 것 방지)
     if (chess.game_over()) {
         updateStatus();
         return; 
@@ -98,14 +98,24 @@ async function computerMove() {
 
     const bestMoveLan = await getBestMoveFromChessApi(currentFen, selectedDifficultyDepth);
     
+    // 3. API 응답 처리 및 보드 적용
     if (bestMoveLan) {
-        // 성공: 수 두기
-        chess.move(bestMoveLan, { sloppy: true }); 
-        board.position(chess.fen());
-        document.getElementById('status').textContent = `컴퓨터가 ${bestMoveLan} 수를 두었습니다.`;
+        console.log(`API에서 받은 수: ${bestMoveLan}`); 
+        
+        // ⚠️ 방어 로직: chess.move()가 실패할 경우를 확인합니다.
+        const moveResult = chess.move(bestMoveLan, { sloppy: true }); 
+        
+        if (moveResult) {
+            // 성공
+            board.position(chess.fen()); // 보드 업데이트
+            document.getElementById('status').textContent = `컴퓨터가 ${bestMoveLan} 수를 두었습니다.`;
+        } else {
+            // 🛑 실패 (API가 유효하지 않은 수를 보냈거나, chess.js가 거부함)
+            document.getElementById('status').textContent = `⚠️ 오류: API가 반환한 수(${bestMoveLan})를 보드에 적용할 수 없습니다.`;
+        }
     } else {
-        // 실패: API가 수를 반환하지 못함
-        document.getElementById('status').textContent = "⚠️ 엔진이 최적의 수를 찾지 못했거나, API 통신에 실패했습니다. (로그 확인)";
+        // API 호출 실패 시
+        document.getElementById('status').textContent = "엔진이 최적의 수를 찾지 못했거나, API 통신에 실패했습니다. (API 오류)";
     }
     
     // 4. 계산 종료 플래그 OFF
@@ -172,6 +182,6 @@ $(document).ready(function() {
     // 초기 게임 시작
     startNewGame(); 
     
-    // 색상 변경 이벤트 리스너 추가 (index.html에서 onclick="startNewGame()"으로 대체되었으므로 사실상 불필요하지만 유지)
+    // 색상 변경 이벤트 리스너 추가 (혹시 모를 변경 감지)
     document.getElementById('playerColor').addEventListener('change', startNewGame);
-})
+});
