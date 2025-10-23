@@ -169,7 +169,8 @@ const config = {
     onDrop: onDrop,
     onSnapEnd: function() { board.position(chess.fen()); },
     
-    // 🛑 pieceTheme 설정을 제거하여, 이전에 보드가 보였던 상태로 복구합니다. 
+    // ✅ 이미지 로드 FIX: 가장 안정적인 unpkg 경로로 pieceTheme 설정
+    pieceTheme: 'https://unpkg.com/chessboard-js@1.0.0/img/chesspieces/wikipedia/{piece}.png'
 };
 
 // 페이지 로드 시 보드 초기화
