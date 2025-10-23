@@ -1,11 +1,11 @@
 // =========================================================
-// 1. 상수 및 초기화 (RapidAPI 설정)
+// 1. 상수 및 초기화 (RapidAPI StockFish 16 설정)
 // =========================================================
 
-// 🚨🚨🚨 발급받은 실제 API 키와 호스트 값입니다.
+// 🚨🚨🚨 실제 API 키와 호스트 값입니다. (이전에 확인된 값 유지)
 const RAPIDAPI_KEY = "98c1a1d50bmshece777cb590225ep14cbbbjsn12fcb6a75780"; 
 const RAPIDAPI_HOST = "chess-stockfish-16-api.p.rapidapi.com";
-// ✅ 엔드포인트 경로 수정: /chess/api
+// ✅ 404 오류가 수정된 정확한 엔드포인트 경로입니다.
 const STOCKFISH_API_URL = "https://" + RAPIDAPI_HOST + "/chess/api"; 
 
 const chess = new Chess();
@@ -14,10 +14,10 @@ let playerColor = 'w';
 let isEngineThinking = false; 
 
 // =========================================================
-// 2. API 통신 및 난이도 조절 함수 (RapidAPI StockFish 16용)
+// 2. API 통신 함수 (RapidAPI StockFish 16용)
 // =========================================================
 
-// POST 요청을 위한 헬퍼 함수 (Header 및 TimeOut 포함)
+// POST 요청을 위한 헬퍼 함수
 async function postRapidApi(fen, selectedDepth) {
     const formBody = new URLSearchParams({
         fen: fen,
@@ -34,7 +34,6 @@ async function postRapidApi(fen, selectedDepth) {
         body: formBody.toString(),
     });
 
-    // 5초 타임아웃 Promise 생성
     const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("API 응답 시간 초과 (Timeout)")), 5000)
     );
@@ -42,7 +41,6 @@ async function postRapidApi(fen, selectedDepth) {
     const response = await Promise.race([fetchPromise, timeoutPromise]);
     
     if (!response.ok) {
-         // HTTP 상태 코드 오류 발생 시
          throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
     }
     
@@ -50,25 +48,22 @@ async function postRapidApi(fen, selectedDepth) {
 }
 
 async function getBestMoveFromStockfishApi(fen, selectedDepth) {
-    console.log(`Stockfish API에 FEN 요청: ${fen}, Depth: ${selectedDepth}`);
+    console.log(`Stockfish API에 FEN 요청: ${fen}, Depth: ${selectedDepth}`); 
 
     try {
         const responseData = await postRapidApi(fen, selectedDepth);
 
-        // API 응답 구조: { "position": "...", "bestmove": "e2e4", ... }
         if (responseData && responseData.bestmove) {
-            console.log("Stockfish API 응답 성공:", responseData);
             return responseData.bestmove; 
         } else {
             document.getElementById('status').textContent = `API 오류: Stockfish가 수를 찾지 못했습니다.`;
-            console.error("API가 유효하지 않은 응답 반환:", responseData);
             return null;
         }
     } catch (error) {
         if (error.message.includes("Timeout")) {
             document.getElementById('status').textContent = "⚠️ 엔진이 수를 찾지 못했습니다. (API 타임아웃)";
         } else if (error.message.includes("HTTP")) {
-            document.getElementById('status').textContent = `API 통신 오류: ${error.message}. 키를 확인하세요.`;
+            document.getElementById('status').textContent = `API 통신 오류: ${error.message}. 키/경로를 확인하세요.`;
         } else {
             document.getElementById('status').textContent = "API 통신 오류가 발생했습니다. (연결 실패)";
         }
@@ -78,72 +73,82 @@ async function getBestMoveFromStockfishApi(fen, selectedDepth) {
 }
 
 // =========================================================
-// 3. 게임 로직 및 이벤트 핸들러
+// 3. 게임 로직 및 이벤트 핸들러 (Skill Level 모방 로직 적용)
 // =========================================================
 
-// 사용자가 수를 둔 후 호출되는 함수
 function onDrop (source, target) {
     if (chess.turn() !== playerColor) {
         return 'snapback'; 
     }
-    
-    const move = chess.move({
-        from: source,
-        to: target,
-        promotion: 'q' 
-    });
-
+    const move = chess.move({ from: source, to: target, promotion: 'q' });
     if (move === null) return 'snapback'; 
-
     updateStatus();
     window.setTimeout(computerMove, 250); 
 }
 
 // 컴퓨터 수 두기 함수
 async function computerMove() {
-    if (chess.game_over()) {
-        updateStatus();
-        return; 
-    }
-    if (isEngineThinking) return; 
-    if (chess.turn() === playerColor) {
-        console.log("LOG: 현재는 플레이어 차례이므로 컴퓨터는 수를 두지 않습니다.");
+    if (chess.game_over() || isEngineThinking || chess.turn() === playerColor) {
+        if (chess.turn() === playerColor) console.log("LOG: 플레이어 차례이므로 건너뜁니다.");
+        updateStatus(); 
         return;
     }
     
     isEngineThinking = true; 
     
     let currentFen = chess.fen(); 
-
-    // FEN 문자열 오류 방지 및 강제 수정 로직
     const fenParts = currentFen.split(' ');
     if (fenParts.length < 6) {
         currentFen = currentFen + ' 0 1'; 
-        console.warn(`WARN: FEN 필드가 부족하여 ' 0 1'을 강제 추가했습니다. 수정된 FEN: ${currentFen}`);
     }
     
-    console.log("DEBUG: 전송되는 현재 FEN:", currentFen); 
-    
     const difficultySelect = document.getElementById('difficulty');
-    const selectedDifficultyDepth = parseInt(difficultySelect.value); 
+    // ✅ HTML에서 Skill Level (0~20) 값을 읽어옵니다.
+    const selectedSkillLevel = parseInt(difficultySelect.value); 
+    
+    // Skill Level을 API가 사용하는 Depth 값으로 변환합니다. (Level 0: Depth 4, Level 20: Depth 18)
+    const apiDepth = Math.max(4, Math.floor(selectedSkillLevel * 0.7) + 4); 
 
-    document.getElementById('status').textContent = `컴퓨터가 생각 중입니다 (Depth: ${selectedDifficultyDepth})...`;
+    document.getElementById('status').textContent = `컴퓨터가 생각 중입니다 (Skill Level: ${selectedSkillLevel}, Depth: ${apiDepth})...`;
 
-    const bestMoveLan = await getBestMoveFromStockfishApi(currentFen, selectedDifficultyDepth);
+    // 1. API를 호출하여 Stockfish의 최적의 수(Best Move)를 가져옵니다.
+    const bestMoveLan = await getBestMoveFromStockfishApi(currentFen, apiDepth);
     
     let moveWasSuccessful = false; 
+    let finalMove = null;
 
     if (bestMoveLan) {
-        console.log(`API에서 받은 수: ${bestMoveLan}`); 
+        const moves = chess.moves({ verbose: true });
         
-        const moveResult = chess.move(bestMoveLan, { sloppy: true }); 
+        // 2. Skill Level에 따른 Best Move 선택 확률 계산 (Level 0: 20%, Level 20: 100%)
+        const bestMoveProbability = 0.2 + (0.8 * (selectedSkillLevel / 20));
+        
+        if (Math.random() < bestMoveProbability) {
+            // ✅ 확률적으로 Best Move 선택 (Skill Level이 높을수록 이 경로)
+            finalMove = bestMoveLan;
+            console.log(`LOG: Best Move 선택 (${(bestMoveProbability * 100).toFixed(0)}% 확률): ${finalMove}`);
+        } else {
+            // ✅ 확률적으로 랜덤한 유효한 수 선택 (Skill Level이 낮을수록 이 경로 = 실수 유도)
+            const randomMoves = moves.filter(move => move.lan !== bestMoveLan);
+            if (randomMoves.length > 0) {
+                const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
+                finalMove = randomMove.lan;
+                console.log(`LOG: Random Move 선택: ${finalMove}`);
+            } else {
+                // 무작위로 둘 다른 수가 없으면, Best Move를 둡니다.
+                finalMove = bestMoveLan; 
+            }
+        }
+        
+        // 3. 최종 선택된 수를 보드에 적용합니다.
+        const moveResult = chess.move(finalMove, { sloppy: true }); 
         
         if (moveResult) {
             board.position(chess.fen()); 
-            document.getElementById('status').textContent = `컴퓨터가 ${bestMoveLan} 수를 두었습니다.`;
+            document.getElementById('status').textContent = `컴퓨터가 ${finalMove} 수를 두었습니다.`;
             moveWasSuccessful = true; 
         } else {
-            document.getElementById('status').textContent = `⚠️ 오류: API가 반환한 수(${bestMoveLan})를 보드에 적용할 수 없습니다.`;
+            document.getElementById('status').textContent = `⚠️ 오류: ${finalMove} 수를 보드에 적용할 수 없습니다.`;
         }
     } 
     
@@ -158,18 +163,14 @@ async function computerMove() {
 function startNewGame() {
     const colorSelect = document.getElementById('playerColor');
     playerColor = colorSelect.value;
-    
     chess.reset(); 
     board.position('start'); 
-    
     if (playerColor === 'b') {
         board.orientation('black');
     } else {
         board.orientation('white');
     }
-    
     updateStatus();
-    
     if (playerColor === 'b' && chess.turn() === 'w') {
         window.setTimeout(computerMove, 500); 
     }
@@ -178,7 +179,6 @@ function startNewGame() {
 // 상태 업데이트 함수
 function updateStatus() {
     let status = '';
-    
     if (chess.in_checkmate()) {
         status = `체크메이트! ${chess.turn() === 'w' ? '흑' : '백'} 승리`;
     } else if (chess.in_draw()) {
@@ -195,8 +195,6 @@ const config = {
     position: 'start',
     onDrop: onDrop,
     onSnapEnd: function() { board.position(chess.fen()); },
-    
-    // 로컬 이미지 경로 사용: 'img' 폴더 바로 아래에 파일이 있다고 가정
     pieceTheme: 'img/{piece}.png'
 };
 
@@ -205,7 +203,6 @@ $(document).ready(function() {
     board = ChessBoard('myBoard', config);
     startNewGame(); 
     document.getElementById('playerColor').addEventListener('change', startNewGame);
-    
-    // 난이도 초기값 Depth 8로 설정
+    // Skill Level 초기값을 보통 난이도인 8로 설정
     document.getElementById('difficulty').value = '8'; 
 });
