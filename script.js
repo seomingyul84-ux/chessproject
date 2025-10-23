@@ -10,39 +10,57 @@ let playerColor = 'w'; // 사용자의 선택 색상 ('w' 또는 'b')
 let isEngineThinking = false; // 엔진 계산 중 플래그 (이중 실행 방지)
 
 // =========================================================
-// 2. API 통신 및 난이도 조절 함수
+// 2. API 통신 및 난이도 조절 함수 (타임아웃 적용)
 // =========================================================
 
 async function postChessApi(data = {}) {
-    const response = await fetch(CHESS_API_URL, {
+    const fetchPromise = fetch(CHESS_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
     });
+
+    // 5초 타임아웃 Promise 생성
+    const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("API 응답 시간 초과 (Timeout)")), 5000) // 5초 대기
+    );
+
+    // fetch와 timeout 중 먼저 완료/실패하는 것을 선택
+    const response = await Promise.race([fetchPromise, timeoutPromise]);
+    
     return response.json();
 }
 
 async function getBestMoveFromChessApi(fen, selectedDepth) {
-    console.log(`API에 FEN 요청: ${fen}, Depth: ${selectedDepth}`);
-
+    // LOGGING FIX
+    const difficultySelect = document.getElementById('difficulty');
+    const selectedDifficultyDepth = parseInt(difficultySelect.value);
+    console.log(`API에 FEN 요청: ${fen}, Depth: ${selectedDifficultyDepth}`); 
+    
     const data = {
         fen: fen,
         depth: selectedDepth,
-        maxThinkingTime: 50, // API 응답 시간 (ms)
+        maxThinkingTime: 50, // API 엔진 자체의 계산 시간은 짧게 유지
     };
 
     try {
         const responseData = await postChessApi(data);
 
         if (responseData.type === 'move' || responseData.type === 'bestmove') {
-            console.log("API 응답:", responseData);
+            console.log("API 응답 성공:", responseData);
             return responseData.lan; 
         } else {
             document.getElementById('status').textContent = `API 오류: ${responseData.text}`;
+            console.error("API가 유효하지 않은 타입의 응답 반환:", responseData);
             return null;
         }
     } catch (error) {
-        document.getElementById('status').textContent = "API 통신 오류가 발생했습니다. (연결 실패)";
+        // ⚠️ 타임아웃 및 일반 오류 처리
+        if (error.message.includes("Timeout")) {
+            document.getElementById('status').textContent = "⚠️ 엔진이 수를 찾지 못했습니다. (API 타임아웃)";
+        } else {
+            document.getElementById('status').textContent = "API 통신 오류가 발생했습니다. (연결 실패)";
+        }
         console.error("API 통신 오류:", error);
         return null;
     }
@@ -72,6 +90,7 @@ function onDrop (source, target) {
 
 // 컴퓨터 수 두기 함수
 async function computerMove() {
+    // 1. 게임 종료/계산 중/플레이어 턴 확인 (수가 멈추는 것 방지)
     if (chess.game_over()) {
         updateStatus();
         return; 
@@ -92,6 +111,8 @@ async function computerMove() {
 
     const bestMoveLan = await getBestMoveFromChessApi(currentFen, selectedDifficultyDepth);
     
+    let moveWasSuccessful = false; // ⚠️ 플래그 초기화
+
     if (bestMoveLan) {
         console.log(`API에서 받은 수: ${bestMoveLan}`); 
         
@@ -100,16 +121,21 @@ async function computerMove() {
         if (moveResult) {
             board.position(chess.fen()); 
             document.getElementById('status').textContent = `컴퓨터가 ${bestMoveLan} 수를 두었습니다.`;
+            moveWasSuccessful = true; // ⚠️ 성공 시 플래그 설정
         } else {
             document.getElementById('status').textContent = `⚠️ 오류: API가 반환한 수(${bestMoveLan})를 보드에 적용할 수 없습니다.`;
         }
     } else {
-        document.getElementById('status').textContent = "엔진이 최적의 수를 찾지 못했거나, API 통신에 실패했습니다. (API 오류)";
+        // API 호출 실패, 타임아웃 등으로 bestMoveLan이 null인 경우
+        // getBestMoveFromChessApi 내에서 이미 status가 업데이트되었음
     }
     
     isEngineThinking = false; 
     
-    updateStatus();
+    // ⚠️ 수가 성공적으로 두어졌을 때만 상태를 업데이트하여 턴이 넘어가는 것을 방지
+    if (moveWasSuccessful) {
+        updateStatus();
+    }
 }
 
 // 색상 변경 또는 버튼 클릭 시 게임을 새로 시작하는 함수
@@ -154,7 +180,7 @@ const config = {
     onDrop: onDrop,
     onSnapEnd: function() { board.position(chess.fen()); },
     
-    // ✅ 로컬 이미지 경로: 'img' 폴더 바로 아래에 파일이 있다고 가정
+    // 로컬 이미지 경로 사용: 'img' 폴더 바로 아래에 파일이 있다고 가정
     pieceTheme: 'img/{piece}.png'
 };
 
