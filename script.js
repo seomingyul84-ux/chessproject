@@ -32,15 +32,10 @@ async function postChessApi(data = {}) {
 }
 
 async function getBestMoveFromChessApi(fen, selectedDepth) {
-    // LOGGING FIX
-    const difficultySelect = document.getElementById('difficulty');
-    const selectedDifficultyDepth = parseInt(difficultySelect.value);
-    console.log(`API에 FEN 요청: ${fen}, Depth: ${selectedDifficultyDepth}`); 
-    
     const data = {
         fen: fen,
         depth: selectedDepth,
-        maxThinkingTime: 50, // API 엔진 자체의 계산 시간은 짧게 유지
+        maxThinkingTime: 50,
     };
 
     try {
@@ -55,7 +50,6 @@ async function getBestMoveFromChessApi(fen, selectedDepth) {
             return null;
         }
     } catch (error) {
-        // ⚠️ 타임아웃 및 일반 오류 처리
         if (error.message.includes("Timeout")) {
             document.getElementById('status').textContent = "⚠️ 엔진이 수를 찾지 못했습니다. (API 타임아웃)";
         } else {
@@ -90,7 +84,6 @@ function onDrop (source, target) {
 
 // 컴퓨터 수 두기 함수
 async function computerMove() {
-    // 1. 게임 종료/계산 중/플레이어 턴 확인 (수가 멈추는 것 방지)
     if (chess.game_over()) {
         updateStatus();
         return; 
@@ -104,6 +97,10 @@ async function computerMove() {
     isEngineThinking = true; 
     
     const currentFen = chess.fen();
+    
+    // ⚠️ FEN 값 디버깅 추가
+    console.log("DEBUG: 전송되는 현재 FEN:", currentFen); 
+    
     const difficultySelect = document.getElementById('difficulty');
     const selectedDifficultyDepth = parseInt(difficultySelect.value); 
 
@@ -111,7 +108,7 @@ async function computerMove() {
 
     const bestMoveLan = await getBestMoveFromChessApi(currentFen, selectedDifficultyDepth);
     
-    let moveWasSuccessful = false; // ⚠️ 플래그 초기화
+    let moveWasSuccessful = false; 
 
     if (bestMoveLan) {
         console.log(`API에서 받은 수: ${bestMoveLan}`); 
@@ -121,18 +118,14 @@ async function computerMove() {
         if (moveResult) {
             board.position(chess.fen()); 
             document.getElementById('status').textContent = `컴퓨터가 ${bestMoveLan} 수를 두었습니다.`;
-            moveWasSuccessful = true; // ⚠️ 성공 시 플래그 설정
+            moveWasSuccessful = true; 
         } else {
             document.getElementById('status').textContent = `⚠️ 오류: API가 반환한 수(${bestMoveLan})를 보드에 적용할 수 없습니다.`;
         }
-    } else {
-        // API 호출 실패, 타임아웃 등으로 bestMoveLan이 null인 경우
-        // getBestMoveFromChessApi 내에서 이미 status가 업데이트되었음
-    }
+    } 
     
     isEngineThinking = false; 
     
-    // ⚠️ 수가 성공적으로 두어졌을 때만 상태를 업데이트하여 턴이 넘어가는 것을 방지
     if (moveWasSuccessful) {
         updateStatus();
     }
