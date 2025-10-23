@@ -154,8 +154,8 @@ const config = {
     onDrop: onDrop,
     onSnapEnd: function() { board.position(chess.fen()); },
     
-    // ✅ CDNJS 이미지 경로로 최종 복구 및 FIX
-    pieceTheme: 'https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png'
+    // ✅ 로컬 이미지 경로: 'img' 폴더 바로 아래에 파일이 있다고 가정
+    pieceTheme: 'img/{piece}.png'
 };
 
 // 페이지 로드 시 보드 초기화
