@@ -103,10 +103,10 @@ async function computerMove() {
     }
     
     const difficultySelect = document.getElementById('difficulty');
-    // ✅ HTML에서 Skill Level (0~20) 값을 읽어옵니다.
+    // HTML에서 Skill Level (0~20) 값을 읽어옵니다.
     const selectedSkillLevel = parseInt(difficultySelect.value); 
     
-    // Skill Level을 API가 사용하는 Depth 값으로 변환합니다. (Level 0: Depth 4, Level 20: Depth 18)
+    // Skill Level을 API가 사용하는 Depth 값으로 변환합니다.
     const apiDepth = Math.max(4, Math.floor(selectedSkillLevel * 0.7) + 4); 
 
     document.getElementById('status').textContent = `컴퓨터가 생각 중입니다 (Skill Level: ${selectedSkillLevel}, Depth: ${apiDepth})...`;
@@ -120,15 +120,15 @@ async function computerMove() {
     if (bestMoveLan) {
         const moves = chess.moves({ verbose: true });
         
-        // 2. Skill Level에 따른 Best Move 선택 확률 계산 (Level 0: 20%, Level 20: 100%)
+        // 2. Skill Level에 따른 Best Move 선택 확률 계산 (난이도 조절 핵심)
         const bestMoveProbability = 0.2 + (0.8 * (selectedSkillLevel / 20));
         
         if (Math.random() < bestMoveProbability) {
-            // ✅ 확률적으로 Best Move 선택 (Skill Level이 높을수록 이 경로)
+            // 확률적으로 Best Move 선택 (Skill Level이 높을수록)
             finalMove = bestMoveLan;
             console.log(`LOG: Best Move 선택 (${(bestMoveProbability * 100).toFixed(0)}% 확률): ${finalMove}`);
         } else {
-            // ✅ 확률적으로 랜덤한 유효한 수 선택 (Skill Level이 낮을수록 이 경로 = 실수 유도)
+            // 확률적으로 랜덤한 유효한 수 선택 (Skill Level이 낮을수록 = 실수 유도)
             const randomMoves = moves.filter(move => move.lan !== bestMoveLan);
             if (randomMoves.length > 0) {
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
