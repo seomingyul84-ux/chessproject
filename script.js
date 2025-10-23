@@ -169,9 +169,7 @@ const config = {
     onDrop: onDrop,
     onSnapEnd: function() { board.position(chess.fen()); },
     
-    // ✅ 이미지 로딩 문제 해결: CDN에서 조각 이미지를 가져오도록 지정
-    pieceTheme: 'https://cdn.rawgit.com/oakmac/chessboardjs/v0.3.0/img/chesspieces/wikipedia/{piece}.png'
-    
+    // 🛑 pieceTheme 설정을 제거하여, 이전에 보드가 보였던 상태로 복구합니다. 
 };
 
 // 페이지 로드 시 보드 초기화
@@ -182,6 +180,6 @@ $(document).ready(function() {
     // 초기 게임 시작
     startNewGame(); 
     
-    // 색상 변경 이벤트 리스너 추가 (혹시 모를 변경 감지)
+    // 색상 변경 이벤트 리스너 추가
     document.getElementById('playerColor').addEventListener('change', startNewGame);
 });
