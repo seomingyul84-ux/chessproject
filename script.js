@@ -73,7 +73,7 @@ async function getBestMoveFromStockfishApi(fen, selectedDepth) {
 }
 
 // =========================================================
-// 3. 게임 로직 및 이벤트 핸들러 (Skill Level 모방 로직 적용)
+// 3. 게임 로직 및 이벤트 핸들러 (난이도 및 체크 방어 로직)
 // =========================================================
 
 function onDrop (source, target) {
@@ -89,7 +89,7 @@ function onDrop (source, target) {
 // 컴퓨터 수 두기 함수
 async function computerMove() {
     if (chess.game_over() || isEngineThinking || chess.turn() === playerColor) {
-        if (chess.turn() === playerColor) console.log("LOG: 플레이어 차례이므로 건너뜁니다.");
+        if (chess.turn() === playerColor) console.log("LOG: 플레이어 차례이므로 건너킵니다.");
         updateStatus(); 
         return;
     }
@@ -105,9 +105,10 @@ async function computerMove() {
     const difficultySelect = document.getElementById('difficulty');
     const selectedSkillLevel = parseInt(difficultySelect.value); 
     
-    const apiDepth = Math.max(4, Math.floor(selectedSkillLevel * 0.7) + 4); 
+    // API Depth 계산: M1 위협 방지를 위해 최소 Depth 6 유지
+    const apiDepth = Math.max(6, Math.floor(selectedSkillLevel * 0.7) + 4); 
 
-    document.getElementById('status').textContent = `컴퓨터가 생각 중입니다 (Skill Level: ${selectedSkillLevel}, Depth: ${apiDepth})...`;
+    document.getElementById('status').textContent = `컴퓨터가 생각 중입니다 (Level: ${selectedSkillLevel}, Depth: ${apiDepth})...`;
 
     // 1. API를 호출하여 Stockfish의 최적의 수(Best Move)를 가져옵니다.
     const bestMoveLan = await getBestMoveFromStockfishApi(currentFen, apiDepth);
@@ -116,27 +117,59 @@ async function computerMove() {
     let finalMove = null;
 
     if (bestMoveLan) {
-        // moves는 verbose: true로 상세 객체를 가져옵니다.
         const moves = chess.moves({ verbose: true });
         
-        // 2. Skill Level에 따른 Best Move 선택 확률 계산 (난이도 조절 핵심)
-        const bestMoveProbability = 0.2 + (0.8 * (selectedSkillLevel / 20));
+        // 🌟🌟🌟 [난이도 로직] 🌟🌟🌟
+        const MAX_DIFFICULTY = 30;
+        const bestMoveProbability = selectedSkillLevel / MAX_DIFFICULTY;
         
-        if (Math.random() < bestMoveProbability) {
+        // 🌟🌟🌟 [체크 방어 로직]: AI 킹이 체크 상태일 때 Best Move 강제 🌟🌟🌟
+        let forceBestMove = false;
+        if (chess.in_check()) {
+            forceBestMove = true;
+            console.log(`LOG: 킹이 체크 상태이므로 최적의 수 선택을 강제합니다.`);
+        }
+        
+        if (forceBestMove || Math.random() < bestMoveProbability) {
             finalMove = bestMoveLan;
-            console.log(`LOG: Best Move 선택 (${(bestMoveProbability * 100).toFixed(0)}% 확률): ${finalMove}`);
+            console.log(`LOG: Best Move 선택 (${forceBestMove ? '체크 방어' : (bestMoveProbability * 100).toFixed(0) + '% 확률'}): ${finalMove}`);
         } else {
-            // Best Move를 제외한 나머지 수를 필터링
-            const randomMoves = moves.filter(move => move.lan !== bestMoveLan);
+            // Random Move 선택 로직
+            let randomMoves = moves.filter(move => move.lan !== bestMoveLan);
             
+            // 🌟🌟🌟 [M1 위협 방지 필터]: 난이도 15 이상일 때만 적용 🌟🌟🌟
+            if (selectedSkillLevel >= 15) {
+                console.log(`LOG: Level ${selectedSkillLevel}이므로 M1 위협 방지 필터를 적용합니다.`);
+                
+                // M1 위협이 없는 안전한 수만 필터링
+                const safeRandomMoves = randomMoves.filter(move => {
+                    const tempChess = new Chess(chess.fen());
+                    tempChess.move(move); // AI가 랜덤 수를 뒀다고 가정
+                    
+                    // 상대방의 모든 수를 시뮬레이션하여 M1 기회가 있는지 확인
+                    const opponentMoves = tempChess.moves({ verbose: true });
+                    for (const oppMove of opponentMoves) {
+                        const tempOppChess = new Chess(tempOppChess.fen());
+                        tempOppChess.move(oppMove); // 상대가 이 수를 뒀을 때
+                        if (tempOppChess.in_checkmate()) {
+                            return false; // 상대방이 M1을 걸 수 있다면, 이 Random Move는 안전하지 않음
+                        }
+                    }
+                    return true; // 안전한 Random Move
+                });
+                
+                // 필터링된 안전한 수 목록으로 교체
+                randomMoves = safeRandomMoves;
+            }
+
             if (randomMoves.length > 0) {
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
-                // 🌟🌟🌟 수정된 부분: .lan 대신 .san을 사용하여 안정성 확보 🌟🌟🌟
                 finalMove = randomMove.san; 
                 console.log(`LOG: Random Move 선택: ${finalMove}`);
             } else {
-                // 랜덤 수를 찾지 못하면 Best Move를 사용 (최후의 수단)
+                // M1 필터링 결과 남은 수가 없거나, 원래부터 Random Move가 없으면 Best Move로 회귀
                 finalMove = bestMoveLan; 
+                console.warn("LOG: 안전한 Random Move가 없어 Best Move로 강제 회귀.");
             }
         }
         
@@ -206,12 +239,11 @@ const config = {
 
 // DOM이 준비되면 보드를 초기화합니다.
 $(document).ready(function() {
-    // 로컬 파일 사용으로 ChessBoard 정의가 보장됩니다.
     board = ChessBoard('myBoard', config); 
     startNewGame(); 
     
     // 이벤트 리스너 설정
     document.getElementById('playerColor').addEventListener('change', startNewGame);
-    document.getElementById('difficulty').value = '8'; 
+    document.getElementById('difficulty').value = '15'; // 기본 보통 난이도 (15/30 = 50% 확률)
     console.log("체스보드 초기화 성공.");
 });
