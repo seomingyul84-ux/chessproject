@@ -8,8 +8,7 @@ const RAPIDAPI_HOST = "chess-stockfish-16-api.p.rapidapi.com";
 // ✅ 정확한 엔드포인트 경로
 const STOCKFISH_API_URL = "https://" + RAPIDAPI_HOST + "/chess/api"; 
 
-// Chess()는 라이브러리 로드 후 즉시 사용 가능
-const chess = new Chess(); 
+const chess = new Chess();
 let board = null; 
 let playerColor = 'w'; 
 let isEngineThinking = false; 
@@ -197,21 +196,17 @@ const config = {
 };
 
 // =========================================================
-// 4. 초기화 로직 (defer에 의존하여 즉시 실행)
+// 4. 초기화 로직 (DOM 준비 완료 후 실행)
 // =========================================================
 
-// 이 함수는 defer 속성에 의해 모든 라이브러리가 로드된 후 실행됨이 보장됩니다.
-function initializeApp() {
-    // ChessBoard가 이제 정의되었을 것이라고 가정하고 바로 호출합니다.
+// DOM이 준비되면 보드를 초기화합니다.
+$(document).ready(function() {
+    // 로컬 파일 사용으로 ChessBoard 정의가 보장됩니다.
     board = ChessBoard('myBoard', config); 
     startNewGame(); 
     
     // 이벤트 리스너 설정
     document.getElementById('playerColor').addEventListener('change', startNewGame);
     document.getElementById('difficulty').value = '8'; 
-    console.log("체스보드 초기화 성공 및 애플리케이션 시작.");
-}
-
-// defer 속성을 사용하므로, DOMContentLoaded 이벤트 없이 바로 함수를 호출합니다.
-// 이 코드는 HTML 문서의 구문 분석이 완료된 시점에 실행됩니다.
-initializeApp();
+    console.log("체스보드 초기화 성공.");
+});
