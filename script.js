@@ -149,8 +149,10 @@ async function computerMove() {
                     // 상대방의 모든 수를 시뮬레이션하여 M1 기회가 있는지 확인
                     const opponentMoves = tempChess.moves({ verbose: true });
                     for (const oppMove of opponentMoves) {
-                        const tempOppChess = new Chess(tempOppChess.fen());
+                        // 🌟🌟🌟 오류 수정: tempChess.fen()을 기반으로 새 인스턴스 생성 🌟🌟🌟
+                        const tempOppChess = new Chess(tempChess.fen()); 
                         tempOppChess.move(oppMove); // 상대가 이 수를 뒀을 때
+                        
                         if (tempOppChess.in_checkmate()) {
                             return false; // 상대방이 M1을 걸 수 있다면, 이 Random Move는 안전하지 않음
                         }
