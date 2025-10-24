@@ -5,7 +5,7 @@
 // 🚨🚨🚨 실제 API 키와 호스트 값입니다. (이전에 확인된 값 유지)
 const RAPIDAPI_KEY = "98c1a1d50bmshece777cb590225ep14cbbbjsn12fcb6a75780"; 
 const RAPIDAPI_HOST = "chess-stockfish-16-api.p.rapidapi.com";
-// ✅ 404 오류가 수정된 정확한 엔드포인트 경로입니다.
+// ✅ 정확한 엔드포인트 경로
 const STOCKFISH_API_URL = "https://" + RAPIDAPI_HOST + "/chess/api"; 
 
 const chess = new Chess();
@@ -103,10 +103,8 @@ async function computerMove() {
     }
     
     const difficultySelect = document.getElementById('difficulty');
-    // HTML에서 Skill Level (0~20) 값을 읽어옵니다.
     const selectedSkillLevel = parseInt(difficultySelect.value); 
     
-    // Skill Level을 API가 사용하는 Depth 값으로 변환합니다.
     const apiDepth = Math.max(4, Math.floor(selectedSkillLevel * 0.7) + 4); 
 
     document.getElementById('status').textContent = `컴퓨터가 생각 중입니다 (Skill Level: ${selectedSkillLevel}, Depth: ${apiDepth})...`;
@@ -124,24 +122,20 @@ async function computerMove() {
         const bestMoveProbability = 0.2 + (0.8 * (selectedSkillLevel / 20));
         
         if (Math.random() < bestMoveProbability) {
-            // 확률적으로 Best Move 선택 (Skill Level이 높을수록)
             finalMove = bestMoveLan;
             console.log(`LOG: Best Move 선택 (${(bestMoveProbability * 100).toFixed(0)}% 확률): ${finalMove}`);
         } else {
-            // 확률적으로 랜덤한 유효한 수 선택 (Skill Level이 낮을수록 = 실수 유도)
             const randomMoves = moves.filter(move => move.lan !== bestMoveLan);
             if (randomMoves.length > 0) {
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
                 finalMove = randomMove.lan;
                 console.log(`LOG: Random Move 선택: ${finalMove}`);
             } else {
-                // 무작위로 둘 다른 수가 없으면, Best Move를 둡니다.
                 finalMove = bestMoveLan; 
             }
         }
         
         // 3. 최종 선택된 수를 보드에 적용합니다.
-        // board가 null이 아닐 때만 position을 호출하도록 로직을 변경합니다. (방어적 코딩)
         const moveResult = chess.move(finalMove, { sloppy: true }); 
         
         if (moveResult) {
@@ -165,7 +159,7 @@ function startNewGame() {
     const colorSelect = document.getElementById('playerColor');
     playerColor = colorSelect.value;
     chess.reset(); 
-    if (board) board.position('start'); // board가 정의되었을 때만 호출
+    if (board) board.position('start'); 
     if (playerColor === 'b') {
         if (board) board.orientation('black');
     } else {
@@ -196,35 +190,23 @@ const config = {
     position: 'start',
     onDrop: onDrop,
     onSnapEnd: function() { 
-        if (board) board.position(chess.fen()); // board가 정의되었을 때만 호출
+        if (board) board.position(chess.fen()); 
     },
     pieceTheme: 'img/{piece}.png'
 };
 
 // =========================================================
-// 4. 초기화 로직 (ReferenceError 방지)
+// 4. 초기화 로직 (단순화)
 // =========================================================
 
-// 페이지 로드 시 보드 초기화 및 ReferenceError 방지
-function initializeBoard() {
-    // ChessBoard가 정의되었는지 확인하고, 아니면 0.1초 후 재시도
-    if (typeof ChessBoard === 'undefined') {
-        console.warn("ChessBoard 라이브러리 로드 대기 중...");
-        setTimeout(initializeBoard, 100);
-        return;
-    }
-
-    // ChessBoard가 정의되었으므로 안전하게 보드 초기화
+// DOM이 준비되면 보드를 초기화합니다.
+$(document).ready(function() {
+    // index.html에서 라이브러리 로드가 보장되므로, ChessBoard를 직접 호출합니다.
     board = ChessBoard('myBoard', config); 
-    startNewGame(); // board가 생성된 후에 호출되어야 함
+    startNewGame(); 
     
     // 이벤트 리스너 설정
     document.getElementById('playerColor').addEventListener('change', startNewGame);
     document.getElementById('difficulty').value = '8'; 
-    console.log("체스보드 초기화 성공.");
-}
-
-// DOM이 준비되면 초기화 함수를 호출
-$(document).ready(function() {
-    initializeBoard();
+    console.log("체스보드 초기화 시도 및 완료.");
 });
