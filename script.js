@@ -141,10 +141,11 @@ async function computerMove() {
         }
         
         // 3. 최종 선택된 수를 보드에 적용합니다.
+        // board가 null이 아닐 때만 position을 호출하도록 로직을 변경합니다. (방어적 코딩)
         const moveResult = chess.move(finalMove, { sloppy: true }); 
         
         if (moveResult) {
-            board.position(chess.fen()); 
+            if (board) board.position(chess.fen()); 
             document.getElementById('status').textContent = `컴퓨터가 ${finalMove} 수를 두었습니다.`;
             moveWasSuccessful = true; 
         } else {
@@ -164,11 +165,11 @@ function startNewGame() {
     const colorSelect = document.getElementById('playerColor');
     playerColor = colorSelect.value;
     chess.reset(); 
-    board.position('start'); 
+    if (board) board.position('start'); // board가 정의되었을 때만 호출
     if (playerColor === 'b') {
-        board.orientation('black');
+        if (board) board.orientation('black');
     } else {
-        board.orientation('white');
+        if (board) board.orientation('white');
     }
     updateStatus();
     if (playerColor === 'b' && chess.turn() === 'w') {
@@ -194,15 +195,37 @@ const config = {
     draggable: true,
     position: 'start',
     onDrop: onDrop,
-    onSnapEnd: function() { board.position(chess.fen()); },
+    onSnapEnd: function() { 
+        if (board) board.position(chess.fen()); // board가 정의되었을 때만 호출
+    },
     pieceTheme: 'img/{piece}.png'
 };
 
-// 페이지 로드 시 보드 초기화
-$(document).ready(function() {
-    board = ChessBoard('myBoard', config);
-    startNewGame(); 
+// =========================================================
+// 4. 초기화 로직 (ReferenceError 방지)
+// =========================================================
+
+// 페이지 로드 시 보드 초기화 및 ReferenceError 방지
+function initializeBoard() {
+    // ChessBoard가 정의되었는지 확인하고, 아니면 0.1초 후 재시도
+    if (typeof ChessBoard === 'undefined') {
+        console.warn("ChessBoard 라이브러리 로드 대기 중...");
+        setTimeout(initializeBoard, 100);
+        return;
+    }
+
+    // ChessBoard가 정의되었으므로 안전하게 보드 초기화
+    board = ChessBoard('myBoard', config); 
+    startNewGame(); // board가 생성된 후에 호출되어야 함
+    
+    // 이벤트 리스너 설정
     document.getElementById('playerColor').addEventListener('change', startNewGame);
-    // Skill Level 초기값을 보통 난이도인 8로 설정
     document.getElementById('difficulty').value = '8'; 
+    console.log("체스보드 초기화 성공.");
+}
+
+// DOM이 준비되면 초기화 함수를 호출
+$(document).ready(function() {
+    initializeBoard();
 });
+
