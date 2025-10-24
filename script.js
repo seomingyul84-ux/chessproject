@@ -228,4 +228,3 @@ function initializeBoard() {
 $(document).ready(function() {
     initializeBoard();
 });
-
