@@ -2,7 +2,7 @@
 // 1. 상수 및 초기화 (RapidAPI StockFish 16 설정)
 // =========================================================
 
-// 🚨🚨🚨 실제 API 키와 호스트 값입니다. (이전에 확인된 값 유지)
+// 🚨 실제 API 키와 호스트 값입니다. (이전에 확인된 값 유지)
 const RAPIDAPI_KEY = "98c1a1d50bmshece777cb590225ep14cbbbjsn12fcb6a75780"; 
 const RAPIDAPI_HOST = "chess-stockfish-16-api.p.rapidapi.com";
 // ✅ 정확한 엔드포인트 경로
@@ -116,6 +116,7 @@ async function computerMove() {
     let finalMove = null;
 
     if (bestMoveLan) {
+        // moves는 verbose: true로 상세 객체를 가져옵니다.
         const moves = chess.moves({ verbose: true });
         
         // 2. Skill Level에 따른 Best Move 선택 확률 계산 (난이도 조절 핵심)
@@ -125,12 +126,16 @@ async function computerMove() {
             finalMove = bestMoveLan;
             console.log(`LOG: Best Move 선택 (${(bestMoveProbability * 100).toFixed(0)}% 확률): ${finalMove}`);
         } else {
+            // Best Move를 제외한 나머지 수를 필터링
             const randomMoves = moves.filter(move => move.lan !== bestMoveLan);
+            
             if (randomMoves.length > 0) {
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
-                finalMove = randomMove.lan;
+                // 🌟🌟🌟 수정된 부분: .lan 대신 .san을 사용하여 안정성 확보 🌟🌟🌟
+                finalMove = randomMove.san; 
                 console.log(`LOG: Random Move 선택: ${finalMove}`);
             } else {
+                // 랜덤 수를 찾지 못하면 Best Move를 사용 (최후의 수단)
                 finalMove = bestMoveLan; 
             }
         }
