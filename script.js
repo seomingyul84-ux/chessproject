@@ -93,13 +93,37 @@ async function getBestMoveAndDepthFromStockfishApi(fen, selectedDepth) {
 // 3. 게임 로직 및 이벤트 핸들러 (헌납 방지 로직 포함)
 // =========================================================
 
+// UCI 문자열을 받아서 chess.move를 안전하게 실행하는 헬퍼 함수
+function executeUciMove(uciMove) {
+    if (!uciMove || uciMove.length < 4) return null;
+    
+    const from = uciMove.substring(0, 2);
+    const to = uciMove.substring(2, 4);
+    let promotion = undefined;
+    
+    // 프로모션 처리 (e.g., a7a8q)
+    if (uciMove.length === 5) {
+        promotion = uciMove.substring(4, 5);
+    }
+    
+    try {
+        // 객체 형식으로 move 실행 (가장 안정적인 방식)
+        return chess.move({ from: from, to: to, promotion: promotion });
+    } catch (e) {
+        console.error("UCI Move 실행 중 예외 발생:", e);
+        return null;
+    }
+}
+
 function onDrop (source, target) {
     if (chess.turn() !== playerColor) {
         return 'snapback'; 
     }
-    // UCI 포맷으로 move 호출 (from: source, to: target)
+    
+    // 플레이어의 수를 UCI 포맷으로 실행
     const move = chess.move({ from: source, to: target, promotion: 'q' });
     if (move === null) return 'snapback'; 
+    
     updateStatus();
     // 250ms 지연 후 AI 턴 시작
     window.setTimeout(computerMove, 250); 
@@ -133,6 +157,7 @@ async function computerMove() {
 
     let moveResult = null; 
     let finalMoveSan = null; 
+    
     // UCI/LAN 문자열이 필요하므로 verbose: true 사용
     const moves = chess.moves({ verbose: true }); 
 
@@ -148,8 +173,9 @@ async function computerMove() {
         }
         
         if (forceBestMove || Math.random() < bestMoveProbability) {
-            // Best Move 선택 및 적용 (API의 UCI 문자열 사용)
-            moveResult = chess.move(bestMoveLan, { sloppy: true });
+            // Best Move 선택 및 적용 (executeUciMove 사용)
+            moveResult = executeUciMove(bestMoveLan);
+            
             if (moveResult) {
                 finalMoveSan = moveResult.san; 
                 console.log(`LOG: Best Move 선택 (${forceBestMove ? '체크 방어' : (bestMoveProbability * 100).toFixed(0) + '% 확률'}): ${finalMoveSan}`);
@@ -169,11 +195,15 @@ async function computerMove() {
                 
                 const safeRandomMoves = randomMoves.filter(move => {
                     const tempChess = new Chess(chess.fen());
+                    
+                    // UCI/LAN 문자열을 사용하여 수 적용
                     tempChess.move(move.lan, { sloppy: true }); 
                     
                     const opponentMoves = tempChess.moves({ verbose: true });
                     for (const oppMove of opponentMoves) {
                         const tempOppChess = new Chess(tempChess.fen()); 
+                        
+                        // UCI/LAN 문자열을 사용하여 수 적용
                         tempOppChess.move(oppMove.lan, { sloppy: true }); 
                         
                         if (tempOppChess.in_checkmate()) {
@@ -196,6 +226,8 @@ async function computerMove() {
                     
                     for (const oppMove of opponentMoves) {
                         const tempOppChess = new Chess(tempChess.fen()); 
+                        
+                        // UCI/LAN 문자열을 사용하여 수 적용
                         const opponentMoveResult = tempOppChess.move(oppMove.lan, { sloppy: true });
                         
                         if (opponentMoveResult) {
@@ -217,10 +249,10 @@ async function computerMove() {
             } // Level 10 이상 필터링 끝
 
             if (randomMoves.length > 0) {
-                // 안전한 수 중 랜덤 선택 및 적용
+                // 안전한 수 중 랜덤 선택 및 적용 (executeUciMove 사용)
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
                 
-                moveResult = chess.move(randomMove.lan, { sloppy: true }); 
+                moveResult = executeUciMove(randomMove.lan); 
                 
                 if (moveResult) {
                     finalMoveSan = moveResult.san; 
@@ -230,8 +262,8 @@ async function computerMove() {
                 }
 
             } else {
-                // 안전한 Random Move가 없으면 Best Move로 회귀 및 적용
-                moveResult = chess.move(bestMoveLan, { sloppy: true });
+                // 안전한 Random Move가 없으면 Best Move로 회귀 및 적용 (executeUciMove 사용)
+                moveResult = executeUciMove(bestMoveLan);
                 if (moveResult) {
                     finalMoveSan = moveResult.san; 
                     console.warn("LOG: 안전한 Random Move가 없어 Best Move로 강제 회귀.");
@@ -293,9 +325,9 @@ async function computerMove() {
         }
 
         if (movesToChoose.length > 0) {
-            // 필터링된 안전한 수 중 랜덤 선택
+            // 필터링된 안전한 수 중 랜덤 선택 (executeUciMove 사용)
             const randomMove = movesToChoose[Math.floor(Math.random() * movesToChoose.length)];
-            moveResult = chess.move(randomMove.lan, { sloppy: true });
+            moveResult = executeUciMove(randomMove.lan);
             
             if (moveResult) {
                 finalMoveSan = moveResult.san;
