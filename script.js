@@ -1,11 +1,10 @@
 // =========================================================
-// 1. 상수 및 초기화 (RapidAPI StockFish 16 설정)
+// 1. 상수 및 초기화
 // =========================================================
 
-// 🚨 실제 API 키와 호스트 값입니다. (이전에 확인된 값 유지)
+// 🚨 RapidAPI 설정
 const RAPIDAPI_KEY = "98c1a1d50bmshece777cb590225ep14cbbbjsn12fcb6a75780"; 
 const RAPIDAPI_HOST = "chess-stockfish-16-api.p.rapidapi.com";
-// ✅ 정확한 엔드포인트 경로
 const STOCKFISH_API_URL = "https://" + RAPIDAPI_HOST + "/chess/api"; 
 
 const chess = new Chess();
@@ -13,8 +12,24 @@ let board = null;
 let playerColor = 'w'; 
 let isEngineThinking = false; 
 
+// 기물 가치 정의 (CP 단위)
+const PIECE_VALUES = {
+    'p': 100, // Pawn
+    'n': 300, // Knight
+    'b': 300, // Bishop
+    'r': 500, // Rook
+    'q': 900, // Queen
+    'k': 0    // King (가치 계산에서 제외)
+};
+
+function getPieceValue(piece) {
+    if (!piece) return 0;
+    return PIECE_VALUES[piece.toLowerCase()] || 0;
+}
+
+
 // =========================================================
-// 2. API 통신 함수 (RapidAPI StockFish 16용)
+// 2. API 통신 함수 (Best Move만 요청)
 // =========================================================
 
 // POST 요청을 위한 헬퍼 함수
@@ -34,6 +49,7 @@ async function postRapidApi(fen, selectedDepth) {
         body: formBody.toString(),
     });
 
+    // 5초 Timeout 설정
     const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("API 응답 시간 초과 (Timeout)")), 5000)
     );
@@ -47,17 +63,21 @@ async function postRapidApi(fen, selectedDepth) {
     return response.json();
 }
 
-async function getBestMoveFromStockfishApi(fen, selectedDepth) {
+// Best Move와 Depth를 반환하는 함수
+async function getBestMoveAndDepthFromStockfishApi(fen, selectedDepth) {
     console.log(`Stockfish API에 FEN 요청: ${fen}, Depth: ${selectedDepth}`); 
 
     try {
         const responseData = await postRapidApi(fen, selectedDepth);
 
         if (responseData && responseData.bestmove) {
-            return responseData.bestmove; 
+            return {
+                bestmove: responseData.bestmove, 
+                depth: responseData.depth || selectedDepth 
+            };
         } else {
             document.getElementById('status').textContent = `API 오류: Stockfish가 수를 찾지 못했습니다.`;
-            return null;
+            return { bestmove: null, depth: 0 };
         }
     } catch (error) {
         if (error.message.includes("Timeout")) {
@@ -68,12 +88,12 @@ async function getBestMoveFromStockfishApi(fen, selectedDepth) {
             document.getElementById('status').textContent = "API 통신 오류가 발생했습니다. (연결 실패)";
         }
         console.error("Stockfish API 통신 오류:", error);
-        return null;
+        return { bestmove: null, depth: 0 };
     }
 }
 
 // =========================================================
-// 3. 게임 로직 및 이벤트 핸들러 (난이도 및 체크 방어 로직)
+// 3. 게임 로직 및 이벤트 핸들러 (헌납 방지 로직 포함)
 // =========================================================
 
 function onDrop (source, target) {
@@ -83,6 +103,7 @@ function onDrop (source, target) {
     const move = chess.move({ from: source, to: target, promotion: 'q' });
     if (move === null) return 'snapback'; 
     updateStatus();
+    // 250ms 지연 후 AI 턴 시작
     window.setTimeout(computerMove, 250); 
 }
 
@@ -97,27 +118,31 @@ async function computerMove() {
     isEngineThinking = true; 
     
     let currentFen = chess.fen(); 
+    // FEN이 불완전할 경우 보정 (Stockfish API 호환성)
     const fenParts = currentFen.split(' ');
     if (fenParts.length < 6) {
         currentFen = currentFen + ' 0 1'; 
     }
     
-    const difficultySelect = document.getElementById('difficulty');
-    const selectedSkillLevel = parseInt(difficultySelect.value); 
+    // 🌟🌟🌟 슬라이더에서 난이도 값 읽어오기 🌟🌟🌟
+    const difficultySlider = document.getElementById('difficultySlider');
+    const selectedSkillLevel = parseInt(difficultySlider.value); 
     
-    // API Depth 계산: M1 위협 방지를 위해 최소 Depth 6 유지
+    // API Depth 계산: 난이도 기반 탐색 Depth
     const apiDepth = Math.max(6, Math.floor(selectedSkillLevel * 0.7) + 4); 
 
     document.getElementById('status').textContent = `컴퓨터가 생각 중입니다 (Level: ${selectedSkillLevel}, Depth: ${apiDepth})...`;
 
     // 1. API를 호출하여 Stockfish의 최적의 수(Best Move)를 가져옵니다.
-    const bestMoveLan = await getBestMoveFromStockfishApi(currentFen, apiDepth);
+    const result = await getBestMoveAndDepthFromStockfishApi(currentFen, apiDepth);
+    const bestMoveLan = result.bestmove;
     
     let moveWasSuccessful = false; 
     let finalMove = null;
+    const moves = chess.moves({ verbose: true });
+
 
     if (bestMoveLan) {
-        const moves = chess.moves({ verbose: true });
         
         // 🌟🌟🌟 [난이도 로직] 🌟🌟🌟
         const MAX_DIFFICULTY = 30;
@@ -131,46 +156,80 @@ async function computerMove() {
         }
         
         if (forceBestMove || Math.random() < bestMoveProbability) {
-            finalMove = bestMoveLan;
+            // Best Move 선택 (최적의 수)
+            // UCI(lan) to SAN 변환을 위해 sloppy: true 옵션을 사용
+            finalMove = chess.move(bestMoveLan, { sloppy: true }).san;
             console.log(`LOG: Best Move 선택 (${forceBestMove ? '체크 방어' : (bestMoveProbability * 100).toFixed(0) + '% 확률'}): ${finalMove}`);
         } else {
             // Random Move 선택 로직
             let randomMoves = moves.filter(move => move.lan !== bestMoveLan);
             
-            // 🌟🌟🌟 [M1 위협 방지 필터]: 난이도 15 이상일 때만 적용 🌟🌟🌟
+            // 🌟🌟🌟 [Level 15 이상: M1 위협 방지 로직] 🌟🌟🌟
             if (selectedSkillLevel >= 15) {
                 console.log(`LOG: Level ${selectedSkillLevel}이므로 M1 위협 방지 필터를 적용합니다.`);
                 
-                // M1 위협이 없는 안전한 수만 필터링
                 const safeRandomMoves = randomMoves.filter(move => {
                     const tempChess = new Chess(chess.fen());
-                    tempChess.move(move); // AI가 랜덤 수를 뒀다고 가정
+                    tempChess.move(move); 
                     
-                    // 상대방의 모든 수를 시뮬레이션하여 M1 기회가 있는지 확인
                     const opponentMoves = tempChess.moves({ verbose: true });
                     for (const oppMove of opponentMoves) {
-                        // 🌟🌟🌟 오류 수정: tempChess.fen()을 기반으로 새 인스턴스 생성 🌟🌟🌟
                         const tempOppChess = new Chess(tempChess.fen()); 
-                        tempOppChess.move(oppMove); // 상대가 이 수를 뒀을 때
+                        tempOppChess.move(oppMove); 
                         
                         if (tempOppChess.in_checkmate()) {
-                            return false; // 상대방이 M1을 걸 수 있다면, 이 Random Move는 안전하지 않음
+                            return false; // M1 위협이 있는 수 제외
                         }
                     }
-                    return true; // 안전한 Random Move
+                    return true; 
                 });
-                
-                // 필터링된 안전한 수 목록으로 교체
                 randomMoves = safeRandomMoves;
             }
 
+            // 🌟🌟🌟 [모든 난이도: 기물 헌납 방지 로직] 🌟🌟🌟
+            const MATERIAL_LOSS_THRESHOLD = 200; // 폰 2개 또는 마이너 기물 헌납 방지
+            
+            const noBlunderRandomMoves = randomMoves.filter(aiMove => {
+                const tempChess = new Chess(chess.fen());
+                
+                // 1. AI가 수를 둔 후 (aiMove)
+                tempChess.move(aiMove); 
+                
+                const opponentMoves = tempChess.moves({ verbose: true });
+                
+                for (const oppMove of opponentMoves) {
+                    const tempOppChess = new Chess(tempChess.fen()); 
+                    
+                    // 2. 상대방이 수를 둠 (oppMove)
+                    const moveResult = tempOppChess.move(oppMove);
+                    
+                    if (moveResult) {
+                        let lostPieceValue = 0;
+                        
+                        // 상대방이 기물을 잡았는지 확인 (순 손해)
+                        if (moveResult.captured) {
+                            lostPieceValue = getPieceValue(moveResult.captured);
+                        }
+                        
+                        // 200CP 이상 손해를 유발하는 상대의 반격 수가 존재한다면,
+                        if (lostPieceValue >= MATERIAL_LOSS_THRESHOLD) {
+                            return false; // 이 aiMove는 위험합니다.
+                        }
+                    }
+                }
+                return true; // 이 aiMove는 안전합니다.
+            });
+            
+            randomMoves = noBlunderRandomMoves; // 최종 안전한 수 목록으로 갱신
+
             if (randomMoves.length > 0) {
+                // 안전한 수 중 랜덤 선택
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
-                finalMove = randomMove.san; 
-                console.log(`LOG: Random Move 선택: ${finalMove}`);
+                finalMove = chess.move(randomMove, { sloppy: true }).san; 
+                console.log(`LOG: Random Move 선택 (헌납 필터 적용): ${finalMove}`);
             } else {
-                // M1 필터링 결과 남은 수가 없거나, 원래부터 Random Move가 없으면 Best Move로 회귀
-                finalMove = bestMoveLan; 
+                // 안전한 Random Move가 없으면 Best Move로 회귀
+                finalMove = chess.move(bestMoveLan, { sloppy: true }).san; 
                 console.warn("LOG: 안전한 Random Move가 없어 Best Move로 강제 회귀.");
             }
         }
@@ -185,7 +244,23 @@ async function computerMove() {
         } else {
             document.getElementById('status').textContent = `⚠️ 오류: ${finalMove} 수를 보드에 적용할 수 없습니다.`;
         }
-    } 
+    
+    } else {
+        // [B] Best Move 찾기 실패 시 (대체 로직: 모든 유효한 수 중 랜덤 선택)
+        const moves = chess.moves({ verbose: true });
+
+        if (moves.length > 0) {
+            const randomMove = moves[Math.floor(Math.random() * moves.length)];
+            finalMove = randomMove.san;
+            console.warn(`LOG: Best Move 찾기 실패! 유효한 Random Move(${finalMove})로 강제 대체합니다.`);
+            document.getElementById('status').textContent = `⚠️ 엔진이 수를 찾지 못했지만, 유효한 수(${finalMove})로 대체합니다.`;
+        } else {
+            // 게임 끝이거나 수가 없는 경우
+            isEngineThinking = false;
+            updateStatus();
+            return; 
+        }
+    }
     
     isEngineThinking = false; 
     
@@ -200,12 +275,17 @@ function startNewGame() {
     playerColor = colorSelect.value;
     chess.reset(); 
     if (board) board.position('start'); 
+    
+    // 플레이어 색상에 따라 보드 방향 설정
     if (playerColor === 'b') {
         if (board) board.orientation('black');
     } else {
         if (board) board.orientation('white');
     }
+    
     updateStatus();
+    
+    // AI가 흑이고 게임이 백 턴이면 AI가 먼저 시작
     if (playerColor === 'b' && chess.turn() === 'w') {
         window.setTimeout(computerMove, 500); 
     }
@@ -230,6 +310,7 @@ const config = {
     position: 'start',
     onDrop: onDrop,
     onSnapEnd: function() { 
+        // 잘못된 이동 후 제자리로 돌아가도록 보드 상태 동기화
         if (board) board.position(chess.fen()); 
     },
     pieceTheme: 'img/{piece}.png'
@@ -246,6 +327,5 @@ $(document).ready(function() {
     
     // 이벤트 리스너 설정
     document.getElementById('playerColor').addEventListener('change', startNewGame);
-    document.getElementById('difficulty').value = '15'; // 기본 보통 난이도 (15/30 = 50% 확률)
     console.log("체스보드 초기화 성공.");
 });
