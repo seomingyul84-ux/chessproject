@@ -133,6 +133,7 @@ async function computerMove() {
 
     let moveResult = null; 
     let finalMoveSan = null; 
+    // UCI/LAN 문자열이 필요하므로 verbose: true 사용
     const moves = chess.moves({ verbose: true }); 
 
     if (bestMoveLan) {
@@ -153,7 +154,7 @@ async function computerMove() {
                 finalMoveSan = moveResult.san; 
                 console.log(`LOG: Best Move 선택 (${forceBestMove ? '체크 방어' : (bestMoveProbability * 100).toFixed(0) + '% 확률'}): ${finalMoveSan}`);
             } else {
-                console.error(`LOG: Best Move (${bestMoveLan}) 적용 실패! Chess.js에서 유효하지 않음.`);
+                console.error(`LOG: Best Move (${bestMoveLan}) 적용 실패!`);
             }
 
         } else {
@@ -168,19 +169,15 @@ async function computerMove() {
                 
                 const safeRandomMoves = randomMoves.filter(move => {
                     const tempChess = new Chess(chess.fen());
-                    
-                    // 🌟🌟🌟 from/to 객체 사용하여 수 적용 🌟🌟🌟
-                    tempChess.move({from: move.from, to: move.to, promotion: 'q'}); 
+                    tempChess.move(move.lan, { sloppy: true }); 
                     
                     const opponentMoves = tempChess.moves({ verbose: true });
                     for (const oppMove of opponentMoves) {
                         const tempOppChess = new Chess(tempChess.fen()); 
-                        
-                        // 🌟🌟🌟 from/to 객체 사용하여 수 적용 🌟🌟🌟
-                        tempOppChess.move({from: oppMove.from, to: oppMove.to, promotion: 'q'}); 
+                        tempOppChess.move(oppMove.lan, { sloppy: true }); 
                         
                         if (tempOppChess.in_checkmate()) {
-                            return false; 
+                            return false; // M1 위협이 있는 수 제외
                         }
                     }
                     return true; 
@@ -188,22 +185,18 @@ async function computerMove() {
                 randomMoves = safeRandomMoves;
 
 
-                // 2. 기물 헌납 방지 로직
-                const MATERIAL_LOSS_THRESHOLD = 200; 
+                // 2. 기물 헌납 방지 로직 (임계값 99 CP: 폰 헌납도 방지)
+                const MATERIAL_LOSS_THRESHOLD = 99; 
                 
                 const noBlunderRandomMoves = randomMoves.filter(aiMove => {
                     const tempChess = new Chess(chess.fen());
-                    
-                    // 🌟🌟🌟 from/to 객체 사용하여 수 적용 🌟🌟🌟
-                    tempChess.move({from: aiMove.from, to: aiMove.to, promotion: 'q'}); 
+                    tempChess.move(aiMove.lan, { sloppy: true }); 
                     
                     const opponentMoves = tempChess.moves({ verbose: true });
                     
                     for (const oppMove of opponentMoves) {
                         const tempOppChess = new Chess(tempChess.fen()); 
-                        
-                        // 🌟🌟🌟 from/to 객체 사용하여 수 적용 🌟🌟🌟
-                        const opponentMoveResult = tempOppChess.move({from: oppMove.from, to: oppMove.to, promotion: 'q'});
+                        const opponentMoveResult = tempOppChess.move(oppMove.lan, { sloppy: true });
                         
                         if (opponentMoveResult) {
                             let lostPieceValue = 0;
@@ -212,7 +205,7 @@ async function computerMove() {
                                 lostPieceValue = getPieceValue(opponentMoveResult.captured);
                             }
                             
-                            if (lostPieceValue >= MATERIAL_LOSS_THRESHOLD) {
+                            if (lostPieceValue > MATERIAL_LOSS_THRESHOLD) {
                                 return false; 
                             }
                         }
@@ -227,14 +220,13 @@ async function computerMove() {
                 // 안전한 수 중 랜덤 선택 및 적용
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
                 
-                // 🌟🌟🌟 최종 적용 시 from/to 객체 사용 🌟🌟🌟
-                moveResult = chess.move({from: randomMove.from, to: randomMove.to, promotion: 'q'}); 
+                moveResult = chess.move(randomMove.lan, { sloppy: true }); 
                 
                 if (moveResult) {
                     finalMoveSan = moveResult.san; 
                     console.log(`LOG: Random Move 선택 (${selectedSkillLevel >= 10 ? '헌납 필터 적용' : '필터 미적용'}): ${finalMoveSan}`);
                 } else {
-                    console.error(`LOG: Random Move (${randomMove.lan}) 적용 실패! from/to 사용에도 오류.`);
+                    console.error(`LOG: Random Move (${randomMove.lan}) 적용 실패!`);
                 }
 
             } else {
@@ -258,29 +250,68 @@ async function computerMove() {
         }
     
     } else {
-        // [B] Best Move 찾기 실패 시 (대체 로직: 모든 유효한 수 중 랜덤 선택)
-        const moves = chess.moves({ verbose: true });
+        // [B] Best Move 찾기 실패 시 (대체 로직: 모든 유효한 수 중 필터링 후 랜덤 선택)
+        console.warn("LOG: Stockfish API 응답 실패. 대체 Random Move를 시도합니다.");
 
-        if (moves.length > 0) {
-            const randomMove = moves[Math.floor(Math.random() * moves.length)];
+        let movesToChoose = chess.moves({ verbose: true }); // 모든 유효한 수로 시작
+        
+        // 🌟🌟🌟 Level 10 이상 필터 적용 로직 재활용 🌟🌟🌟
+        if (selectedSkillLevel >= 10) {
             
-            // 🌟🌟🌟 대체 수 적용 시 from/to 객체 사용 🌟🌟🌟
-            moveResult = chess.move({from: randomMove.from, to: randomMove.to, promotion: 'q'});
+            // 1. M1 위협 방지 로직
+            const safeMoves = movesToChoose.filter(move => {
+                const tempChess = new Chess(chess.fen());
+                tempChess.move(move.lan, { sloppy: true }); 
+                const opponentMoves = tempChess.moves({ verbose: true });
+                for (const oppMove of opponentMoves) {
+                    const tempOppChess = new Chess(tempChess.fen()); 
+                    tempOppChess.move(oppMove.lan, { sloppy: true }); 
+                    if (tempOppChess.in_checkmate()) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+            movesToChoose = safeMoves;
+
+            // 2. 기물 헌납 방지 로직 (임계값 99 CP)
+            const MATERIAL_LOSS_THRESHOLD = 99; 
+            const noBlunderMoves = movesToChoose.filter(aiMove => {
+                const tempChess = new Chess(chess.fen());
+                tempChess.move(aiMove.lan, { sloppy: true }); 
+                const opponentMoves = tempChess.moves({ verbose: true });
+                for (const oppMove of opponentMoves) {
+                    const tempOppChess = new Chess(tempChess.fen()); 
+                    const opponentMoveResult = tempOppChess.move(oppMove.lan, { sloppy: true });
+                    if (opponentMoveResult && getPieceValue(opponentMoveResult.captured) > MATERIAL_LOSS_THRESHOLD) {
+                        return false; 
+                    }
+                }
+                return true;
+            });
+            movesToChoose = noBlunderMoves;
+        }
+
+        if (movesToChoose.length > 0) {
+            // 필터링된 안전한 수 중 랜덤 선택
+            const randomMove = movesToChoose[Math.floor(Math.random() * movesToChoose.length)];
+            moveResult = chess.move(randomMove.lan, { sloppy: true });
             
             if (moveResult) {
                 finalMoveSan = moveResult.san;
                 if (board) board.position(chess.fen()); 
-                console.warn(`LOG: Best Move 찾기 실패! 유효한 Random Move(${finalMoveSan})로 강제 대체합니다.`);
+                console.warn(`LOG: Best Move 찾기 실패! 필터링된 Random Move(${finalMoveSan})로 대체합니다.`);
                 document.getElementById('status').textContent = `⚠️ 엔진이 수를 찾지 못했지만, 유효한 수(${finalMoveSan})로 대체합니다.`;
             } else {
                  document.getElementById('status').textContent = `⚠️ 엔진이 수를 찾지 못했고, 대체 수도 적용 실패!`;
             }
         } else {
+            // 필터링 후 남은 수가 없는 경우
             isEngineThinking = false;
             updateStatus();
             return; 
         }
-    }
+    } // Best Move 실패 로직 끝
     
     isEngineThinking = false; 
     
