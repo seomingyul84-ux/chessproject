@@ -32,7 +32,6 @@ function getPieceValue(piece) {
 // 2. API 통신 함수 (Best Move만 요청)
 // =========================================================
 
-// POST 요청을 위한 헬퍼 함수
 async function postRapidApi(fen, selectedDepth) {
     const formBody = new URLSearchParams({
         fen: fen,
@@ -49,7 +48,6 @@ async function postRapidApi(fen, selectedDepth) {
         body: formBody.toString(),
     });
 
-    // 5초 Timeout 설정
     const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("API 응답 시간 초과 (Timeout)")), 5000)
     );
@@ -63,7 +61,6 @@ async function postRapidApi(fen, selectedDepth) {
     return response.json();
 }
 
-// Best Move와 Depth를 반환하는 함수
 async function getBestMoveAndDepthFromStockfishApi(fen, selectedDepth) {
     console.log(`Stockfish API에 FEN 요청: ${fen}, Depth: ${selectedDepth}`); 
 
@@ -119,36 +116,30 @@ async function computerMove() {
     isEngineThinking = true; 
     
     let currentFen = chess.fen(); 
-    // FEN이 불완전할 경우 보정 (Stockfish API 호환성)
     const fenParts = currentFen.split(' ');
     if (fenParts.length < 6) {
         currentFen = currentFen + ' 0 1'; 
     }
     
-    // 슬라이더에서 난이도 값 읽어오기
     const difficultySlider = document.getElementById('difficultySlider');
     const selectedSkillLevel = parseInt(difficultySlider.value); 
     
-    // API Depth 계산: 난이도 기반 탐색 Depth
     const apiDepth = Math.max(6, Math.floor(selectedSkillLevel * 0.7) + 4); 
 
     document.getElementById('status').textContent = `컴퓨터가 생각 중입니다 (Level: ${selectedSkillLevel}, Depth: ${apiDepth})...`;
 
-    // 1. API를 호출하여 Stockfish의 최적의 수(Best Move)를 가져옵니다. (UCI 형식)
     const result = await getBestMoveAndDepthFromStockfishApi(currentFen, apiDepth);
-    const bestMoveLan = result.bestmove; // 예: g1h3
+    const bestMoveLan = result.bestmove; 
 
-    let moveResult = null; // 최종 적용된 move 객체 저장
-    let finalMoveSan = null; // 최종 적용된 수의 SAN 표기 (로그 및 상태 표시용)
-    const moves = chess.moves({ verbose: true }); // 모든 유효한 수 목록 (UCI, SAN 포함)
+    let moveResult = null; 
+    let finalMoveSan = null; 
+    const moves = chess.moves({ verbose: true }); 
 
     if (bestMoveLan) {
         
-        // 🌟🌟🌟 [난이도 로직] 🌟🌟🌟
         const MAX_DIFFICULTY = 30;
         const bestMoveProbability = selectedSkillLevel / MAX_DIFFICULTY;
         
-        // 🌟🌟🌟 [체크 방어 로직]: AI 킹이 체크 상태일 때 Best Move 강제 🌟🌟🌟
         let forceBestMove = false;
         if (chess.in_check()) {
             forceBestMove = true;
@@ -156,10 +147,10 @@ async function computerMove() {
         }
         
         if (forceBestMove || Math.random() < bestMoveProbability) {
-            // **Best Move 선택 및 적용 (중복 제거)**
+            // Best Move 선택 및 적용 (API의 UCI 문자열 사용)
             moveResult = chess.move(bestMoveLan, { sloppy: true });
             if (moveResult) {
-                finalMoveSan = moveResult.san; // 적용된 수의 SAN
+                finalMoveSan = moveResult.san; 
                 console.log(`LOG: Best Move 선택 (${forceBestMove ? '체크 방어' : (bestMoveProbability * 100).toFixed(0) + '% 확률'}): ${finalMoveSan}`);
             } else {
                 console.error(`LOG: Best Move (${bestMoveLan}) 적용 실패! Chess.js에서 유효하지 않음.`);
@@ -167,10 +158,9 @@ async function computerMove() {
 
         } else {
             // Random Move 선택 로직
-            // API가 반환한 UCI 형식의 Best Move를 UCI 형식의 유효한 수 목록에서 제외
             let randomMoves = moves.filter(move => move.lan !== bestMoveLan);
             
-            // 🌟🌟🌟 [Level 10 이상: M1 및 헌납 방지 로직 적용] 🌟🌟🌟
+            // 🌟🌟🌟 Level 10 이상 필터 적용 🌟🌟🌟
             if (selectedSkillLevel >= 10) {
                 
                 // 1. M1 위협 방지 로직
@@ -178,15 +168,19 @@ async function computerMove() {
                 
                 const safeRandomMoves = randomMoves.filter(move => {
                     const tempChess = new Chess(chess.fen());
-                    tempChess.move(move.lan); 
+                    
+                    // 🌟🌟🌟 from/to 객체 사용하여 수 적용 🌟🌟🌟
+                    tempChess.move({from: move.from, to: move.to, promotion: 'q'}); 
                     
                     const opponentMoves = tempChess.moves({ verbose: true });
                     for (const oppMove of opponentMoves) {
                         const tempOppChess = new Chess(tempChess.fen()); 
-                        tempOppChess.move(oppMove.lan); 
+                        
+                        // 🌟🌟🌟 from/to 객체 사용하여 수 적용 🌟🌟🌟
+                        tempOppChess.move({from: oppMove.from, to: oppMove.to, promotion: 'q'}); 
                         
                         if (tempOppChess.in_checkmate()) {
-                            return false; // M1 위협이 있는 수 제외
+                            return false; 
                         }
                     }
                     return true; 
@@ -195,52 +189,52 @@ async function computerMove() {
 
 
                 // 2. 기물 헌납 방지 로직
-                const MATERIAL_LOSS_THRESHOLD = 200; // 폰 2개 또는 마이너 기물 헌납 방지
+                const MATERIAL_LOSS_THRESHOLD = 200; 
                 
                 const noBlunderRandomMoves = randomMoves.filter(aiMove => {
                     const tempChess = new Chess(chess.fen());
                     
-                    // 1. AI가 수를 둔 후 (aiMove.lan)
-                    tempChess.move(aiMove.lan); 
+                    // 🌟🌟🌟 from/to 객체 사용하여 수 적용 🌟🌟🌟
+                    tempChess.move({from: aiMove.from, to: aiMove.to, promotion: 'q'}); 
                     
                     const opponentMoves = tempChess.moves({ verbose: true });
                     
                     for (const oppMove of opponentMoves) {
                         const tempOppChess = new Chess(tempChess.fen()); 
                         
-                        // 2. 상대방이 수를 둠 (oppMove.lan)
-                        const opponentMoveResult = tempOppChess.move(oppMove.lan);
+                        // 🌟🌟🌟 from/to 객체 사용하여 수 적용 🌟🌟🌟
+                        const opponentMoveResult = tempOppChess.move({from: oppMove.from, to: oppMove.to, promotion: 'q'});
                         
                         if (opponentMoveResult) {
                             let lostPieceValue = 0;
                             
-                            // 상대방이 기물을 잡았는지 확인 (순 손해)
                             if (opponentMoveResult.captured) {
                                 lostPieceValue = getPieceValue(opponentMoveResult.captured);
                             }
                             
-                            // 200CP 이상 손해를 유발하는 상대의 반격 수가 존재한다면,
                             if (lostPieceValue >= MATERIAL_LOSS_THRESHOLD) {
-                                return false; // 이 aiMove는 위험합니다.
+                                return false; 
                             }
                         }
                     }
-                    return true; // 이 aiMove는 안전합니다.
+                    return true; 
                 });
                 
-                randomMoves = noBlunderRandomMoves; // 최종 안전한 수 목록으로 갱신
+                randomMoves = noBlunderRandomMoves; 
             } // Level 10 이상 필터링 끝
 
             if (randomMoves.length > 0) {
                 // 안전한 수 중 랜덤 선택 및 적용
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
-                moveResult = chess.move(randomMove.lan, { sloppy: true }); // randomMove.lan을 사용해 적용
+                
+                // 🌟🌟🌟 최종 적용 시 from/to 객체 사용 🌟🌟🌟
+                moveResult = chess.move({from: randomMove.from, to: randomMove.to, promotion: 'q'}); 
+                
                 if (moveResult) {
                     finalMoveSan = moveResult.san; 
-                    // Level 10 미만일 경우 필터 미적용 로그를 보여줌
                     console.log(`LOG: Random Move 선택 (${selectedSkillLevel >= 10 ? '헌납 필터 적용' : '필터 미적용'}): ${finalMoveSan}`);
                 } else {
-                    console.error(`LOG: Random Move (${randomMove.lan}) 적용 실패!`);
+                    console.error(`LOG: Random Move (${randomMove.lan}) 적용 실패! from/to 사용에도 오류.`);
                 }
 
             } else {
@@ -257,11 +251,10 @@ async function computerMove() {
         
         // 3. 최종 적용 결과를 보드에 반영합니다.
         if (moveResult) {
-             if (board) board.position(chess.fen()); // 보드 위치만 업데이트
+             if (board) board.position(chess.fen()); 
              document.getElementById('status').textContent = `컴퓨터가 ${finalMoveSan} 수를 두었습니다.`;
         } else {
-             // 수가 적용되지 않은 경우 (오류 메시지)
-             document.getElementById('status').textContent = `⚠️ 오류: ${bestMoveLan} 수를 보드에 적용할 수 없습니다. (내부 오류)`;
+             document.getElementById('status').textContent = `⚠️ 오류: 수를 보드에 적용할 수 없습니다. (내부 오류, 마지막 시도 수: ${finalMoveSan || bestMoveLan})`;
         }
     
     } else {
@@ -270,7 +263,10 @@ async function computerMove() {
 
         if (moves.length > 0) {
             const randomMove = moves[Math.floor(Math.random() * moves.length)];
-            moveResult = chess.move(randomMove.lan, { sloppy: true });
+            
+            // 🌟🌟🌟 대체 수 적용 시 from/to 객체 사용 🌟🌟🌟
+            moveResult = chess.move({from: randomMove.from, to: randomMove.to, promotion: 'q'});
+            
             if (moveResult) {
                 finalMoveSan = moveResult.san;
                 if (board) board.position(chess.fen()); 
@@ -280,7 +276,6 @@ async function computerMove() {
                  document.getElementById('status').textContent = `⚠️ 엔진이 수를 찾지 못했고, 대체 수도 적용 실패!`;
             }
         } else {
-            // 게임 끝이거나 수가 없는 경우
             isEngineThinking = false;
             updateStatus();
             return; 
@@ -289,7 +284,6 @@ async function computerMove() {
     
     isEngineThinking = false; 
     
-    // 수가 성공적으로 적용되었을 때만 상태 업데이트
     if (moveResult) {
         updateStatus();
     }
@@ -302,7 +296,6 @@ function startNewGame() {
     chess.reset(); 
     if (board) board.position('start'); 
     
-    // 플레이어 색상에 따라 보드 방향 설정
     if (playerColor === 'b') {
         if (board) board.orientation('black');
     } else {
@@ -311,7 +304,6 @@ function startNewGame() {
     
     updateStatus();
     
-    // AI가 흑이고 게임이 백 턴이면 AI가 먼저 시작
     if (playerColor === 'b' && chess.turn() === 'w') {
         window.setTimeout(computerMove, 500); 
     }
@@ -330,28 +322,20 @@ function updateStatus() {
     document.getElementById('status').textContent = status;
 }
 
-// 보드 설정
 const config = {
     draggable: true,
     position: 'start',
     onDrop: onDrop,
     onSnapEnd: function() { 
-        // 잘못된 이동 후 제자리로 돌아가도록 보드 상태 동기화
         if (board) board.position(chess.fen()); 
     },
     pieceTheme: 'img/{piece}.png'
 };
 
-// =========================================================
-// 4. 초기화 로직 (DOM 준비 완료 후 실행)
-// =========================================================
-
-// DOM이 준비되면 보드를 초기화합니다.
 $(document).ready(function() {
     board = ChessBoard('myBoard', config); 
     startNewGame(); 
     
-    // 이벤트 리스너 설정
     document.getElementById('playerColor').addEventListener('change', startNewGame);
     console.log("체스보드 초기화 성공.");
 });
