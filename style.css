@@ -4,94 +4,186 @@ body {
     justify-content: center;
     align-items: flex-start;
     min-height: 100vh;
-    background-color: #f0f0f0;
+    background-color: #333;
     margin: 20px 0;
+    color: #f0f0f0;
 }
 
 .container {
-    background: #ffffff;
+    background: #252422;
     padding: 30px;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     max-width: 900px;
     width: 100%;
+    text-align: center;
 }
 
 h1 {
-    text-align: center;
-    color: #333;
+    color: #f0f0f0;
     margin-bottom: 25px;
 }
 
 .game-area {
     display: flex;
-    flex-wrap: wrap;
-    gap: 30px;
+    gap: 20px;
     justify-content: center;
 }
 
 #myBoard {
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
     border-radius: 5px;
 }
 
-.controls {
+.right-panel {
     display: flex;
     flex-direction: column;
-    gap: 15px;
     width: 250px;
+    gap: 15px;
 }
 
-.option-group {
-    padding: 15px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    background-color: #f9f9f9;
+/* 난이도 슬라이더 박스 스타일 */
+.difficulty-slider-box {
+    background-color: #3f3e3c;
+    padding: 10px 15px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    text-align: left;
 }
 
-.controls h3 {
-    margin-top: 0;
-    margin-bottom: 10px;
-    color: #555;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
-}
-
-.controls label,
-.controls p {
+.difficulty-slider-box label {
+    display: block;
     margin-bottom: 5px;
-    color: #333;
+    font-weight: bold;
+    color: #ccc;
+    font-size: 0.9em;
 }
 
-.controls select,
-.controls button,
-.controls input[type="range"] {
+/* 슬라이더 스타일 (Dark Mode에 맞춤) */
+.difficulty-slider-box input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 8px;
+    background: #555;
+    outline: none;
+    opacity: 0.8;
+    transition: opacity .15s;
+    border-radius: 4px;
+}
+.difficulty-slider-box input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #007bff;
+    cursor: pointer;
+}
+
+/* 게임 컨트롤 박스 스타일 */
+.game-controls-box {
+    background-color: #3f3e3c; 
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    text-align: left;
+    color: #ccc;
+}
+
+.game-controls-box h3 {
+    margin-top: 0;
+    color: #f0f0f0;
+    font-size: 1.1em;
+    border-bottom: 1px solid #555;
+    padding-bottom: 8px;
+}
+
+/* Move History Style */
+.move-history {
+    font-family: monospace;
+    font-size: 0.9em;
+    padding: 5px 0;
+}
+.move-row {
+    padding: 2px 5px;
+    margin-bottom: 3px;
+    display: flex;
+    justify-content: space-between;
+}
+.move-row.selected {
+    background-color: #007bff;
+    border-radius: 3px;
+    color: white;
+}
+.black-move {
+    margin-left: 10px;
+}
+
+/* Action Buttons */
+.action-buttons, .control-icons {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.icon-btn {
+    background: #555;
+    border: none;
+    color: #f0f0f0;
+    padding: 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 1em;
+}
+.icon-btn:hover {
+    background: #666;
+}
+
+.player-info {
+    border-top: 1px solid #555;
+    padding-top: 10px;
+    margin-top: 10px;
+}
+.status-dot {
+    font-size: 0.9em;
+    margin: 5px 0;
+}
+/* 기존 게임 옵션 스타일 */
+.game-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 15px;
+    border-top: 1px solid #555;
+    margin-top: 10px;
+}
+.game-options label {
+    font-weight: normal;
+}
+.game-options select,
+.game-options button {
     width: 100%;
     padding: 10px;
     border-radius: 5px;
-    border: 1px solid #ccc;
+    border: 1px solid #555;
     box-sizing: border-box;
     margin-top: 5px;
+    background-color: #555;
+    color: #f0f0f0;
 }
 
-.controls button {
-    background-color: #5cb85c;
-    color: white;
-    cursor: pointer;
+.game-options button {
+    background-color: #007bff;
     border: none;
-    transition: background-color 0.3s;
-}
-
-.controls button:hover {
-    background-color: #4cae4c;
 }
 
 #status {
     font-weight: bold;
     text-align: center;
     padding: 10px;
-    border: 2px dashed #007bff;
+    border: 1px solid #007bff;
     border-radius: 5px;
-    margin-bottom: 10px;
-    background-color: #eaf5ff;
+    margin-bottom: 15px;
+    background-color: #1a2c3a;
+    color: #7abaff;
 }
