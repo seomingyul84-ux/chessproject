@@ -220,28 +220,32 @@ async function computerMove() {
                 
                 const noBlunderRandomMoves = randomMoves.filter(aiMove => {
                     const tempChess = new Chess(chess.fen());
-                    tempChess.move(aiMove.lan, { sloppy: true }); 
                     
+                    // AI의 수를 임시 적용합니다.
+                    tempChess.move(aiMove.lan, { sloppy: true }); 
+
+                    // 상대방이 응수할 수 있는 모든 유효한 수를 확인합니다.
                     const opponentMoves = tempChess.moves({ verbose: true });
                     
                     for (const oppMove of opponentMoves) {
                         const tempOppChess = new Chess(tempChess.fen()); 
                         
+                        // 상대방이 응수 수를 둡니다.
                         const opponentMoveResult = tempOppChess.move(oppMove.lan, { sloppy: true });
                         
-                        if (opponentMoveResult) {
-                            let lostPieceValue = 0;
+                        if (opponentMoveResult && opponentMoveResult.captured) {
+                            let lostPieceValue = getPieceValue(opponentMoveResult.captured);
                             
-                            if (opponentMoveResult.captured) {
-                                lostPieceValue = getPieceValue(opponentMoveResult.captured);
-                            }
-                            
+                            // 폰(100 CP) 이상의 손실 유발 시 헌납으로 간주
                             if (lostPieceValue > MATERIAL_LOSS_THRESHOLD) {
-                                return false; 
+                                
+                                console.warn(`BLUNDER DETECTED: ${aiMove.lan} -> ${oppMove.lan} 응수 시 ${lostPieceValue} CP 손실 유발`);
+
+                                return false; // 헌납하는 수는 제외
                             }
                         }
                     }
-                    return true; 
+                    return true; // 헌납하지 않는 수만 통과
                 });
                 
                 randomMoves = noBlunderRandomMoves; 
@@ -251,7 +255,7 @@ async function computerMove() {
                 // 안전한 수 중 랜덤 선택
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
                 
-                // 🌟🌟🌟 UCI 문자열을 from/to 기반으로 직접 생성하여 executeUciMove에 전달 (안정화) 🌟🌟🌟
+                // UCI 문자열을 from/to 기반으로 직접 생성하여 executeUciMove에 전달 (안정화)
                 let randomMoveUci = randomMove.from + randomMove.to;
                 if (randomMove.promotion) {
                     randomMoveUci += randomMove.promotion; 
@@ -317,13 +321,24 @@ async function computerMove() {
             const MATERIAL_LOSS_THRESHOLD = 99; 
             const noBlunderMoves = movesToChoose.filter(aiMove => {
                 const tempChess = new Chess(chess.fen());
+                
+                // AI의 수를 임시 적용합니다.
                 tempChess.move(aiMove.lan, { sloppy: true }); 
+
+                // 상대방이 응수할 수 있는 모든 유효한 수를 확인합니다.
                 const opponentMoves = tempChess.moves({ verbose: true });
+
                 for (const oppMove of opponentMoves) {
                     const tempOppChess = new Chess(tempChess.fen()); 
                     const opponentMoveResult = tempOppChess.move(oppMove.lan, { sloppy: true });
-                    if (opponentMoveResult && getPieceValue(opponentMoveResult.captured) > MATERIAL_LOSS_THRESHOLD) {
-                        return false; 
+                    
+                    if (opponentMoveResult && opponentMoveResult.captured) {
+                        let lostPieceValue = getPieceValue(opponentMoveResult.captured);
+                        
+                        if (lostPieceValue > MATERIAL_LOSS_THRESHOLD) {
+                             console.warn(`BLUNDER DETECTED (FALLBACK): ${aiMove.lan} -> ${oppMove.lan} 응수 시 ${lostPieceValue} CP 손실 유발`);
+                            return false; 
+                        }
                     }
                 }
                 return true;
@@ -335,7 +350,7 @@ async function computerMove() {
             // 필터링된 안전한 수 중 랜덤 선택
             const randomMove = movesToChoose[Math.floor(Math.random() * movesToChoose.length)];
             
-            // 🌟🌟🌟 UCI 문자열을 from/to 기반으로 직접 생성하여 executeUciMove에 전달 (안정화) 🌟🌟🌟
+            // UCI 문자열을 from/to 기반으로 직접 생성하여 executeUciMove에 전달 (안정화)
             let randomMoveUci = randomMove.from + randomMove.to;
             if (randomMove.promotion) {
                 randomMoveUci += randomMove.promotion; 
