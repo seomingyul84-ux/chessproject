@@ -86,7 +86,7 @@ async function getBestMoveAndDepthFromStockfishApi(fen, selectedDepth) {
 }
 
 // =========================================================
-// 3. 게임 로직 및 이벤트 핸들러
+// 3. 게임 로직 및 이벤트 핸들러 (AI 로직 복구됨)
 // =========================================================
 
 function executeUciMove(uciMove) {
@@ -411,33 +411,51 @@ function updateStatus() {
     document.getElementById('status').textContent = status;
 }
 
-// 난이도 슬라이더 기본 설정 로직만 유지 (경고창 로직 제거됨)
+// 난이도 슬라이더 기본 설정 로직 (UI 표시 및 연동)
 function setupDifficultyControls() {
     const slider = document.getElementById('difficultySlider');
     const levelDisplay = document.getElementById('difficultyLevel');
+    const depthDisplay = document.getElementById('depthDisplay'); 
+    const controlBoxHeader = document.getElementById('controlBoxHeader'); // 🌟 새로운 헤더 요소 🌟
+    
+    const updateDisplays = () => {
+        const selectedSkillLevel = parseInt(slider.value);
+        levelDisplay.textContent = selectedSkillLevel;
+        
+        // Depth 계산 및 표시
+        const displayDepth = Math.max(6, Math.floor(selectedSkillLevel * 0.7) + 4);
+        depthDisplay.textContent = displayDepth;
+        
+        // 🌟 컨트롤 박스 헤더 업데이트: "레벨 [슬라이더 값]" 🌟
+        if (controlBoxHeader) {
+            controlBoxHeader.textContent = `레벨 ${selectedSkillLevel}`;
+        }
+    };
     
     // 슬라이더 값 변경 이벤트
-    slider.addEventListener('input', () => {
-        levelDisplay.textContent = slider.value;
-    });
+    slider.addEventListener('input', updateDisplays);
 
     // 초기 상태 설정
-    levelDisplay.textContent = slider.value;
+    updateDisplays(); 
 }
+
+// =========================================================
+// 5. 초기 실행
+// =========================================================
 
 const config = {
     draggable: true,
     position: 'start',
     onDrop: onDrop,
     onSnapEnd: function() { 
-        // 깜빡임 방지 로직만 유지
+        if (board) board.position(chess.fen());
     },
     pieceTheme: 'img/{piece}.png'
 };
 
 $(document).ready(function() {
     board = ChessBoard('myBoard', config); 
-    setupDifficultyControls(); // 난이도 컨트롤 초기화
+    setupDifficultyControls(); // 난이도 컨트롤 초기화 및 UI 연동
     startNewGame(); 
     
     document.getElementById('playerColor').addEventListener('change', startNewGame);
