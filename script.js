@@ -11,7 +11,6 @@ const chess = new Chess();
 let board = null; 
 let playerColor = 'w'; 
 let isEngineThinking = false; 
-let hasWarnedHighDifficulty = false; // 경고창을 한 번만 띄우기 위한 플래그
 
 // 기물 가치 정의 (CP 단위)
 const PIECE_VALUES = {
@@ -378,7 +377,7 @@ async function computerMove() {
 }
 
 // =========================================================
-// 4. 난이도 및 보드 초기화 로직 (경고창 기능 추가)
+// 4. 난이도 및 보드 초기화 로직
 // =========================================================
 
 function startNewGame() {
@@ -412,7 +411,7 @@ function updateStatus() {
     document.getElementById('status').textContent = status;
 }
 
-// 🌟🌟🌟 난이도 슬라이더 경고 로직 추가 🌟🌟🌟
+// 난이도 슬라이더 기본 설정 로직만 유지 (경고창 로직 제거됨)
 function setupDifficultyControls() {
     const slider = document.getElementById('difficultySlider');
     const levelDisplay = document.getElementById('difficultyLevel');
@@ -420,29 +419,6 @@ function setupDifficultyControls() {
     // 슬라이더 값 변경 이벤트
     slider.addEventListener('input', () => {
         levelDisplay.textContent = slider.value;
-    });
-
-    // 슬라이더 변경 완료 이벤트 (마우스를 떼거나 키보드를 놓을 때)
-    slider.addEventListener('change', () => {
-        const selectedLevel = parseInt(slider.value);
-        
-        if (selectedLevel >= 10 && !hasWarnedHighDifficulty) {
-            const userConfirmed = confirm(
-                "난이도 10에서 30은 초보자를 위해 설정된 1에서 9 난이도에 비해 매우 어렵습니다. 정말로 플레이하고 싶으십니까?"
-            );
-            
-            if (userConfirmed) {
-                hasWarnedHighDifficulty = true; // 확인했으므로 다시 경고하지 않음
-            } else {
-                // 취소하면 레벨을 9로 되돌립니다.
-                slider.value = '9';
-                levelDisplay.textContent = '9';
-            }
-        }
-        // 난이도가 9 이하로 내려가면 경고 플래그를 리셋 (선택적)
-        if (selectedLevel < 10) {
-             hasWarnedHighDifficulty = false;
-        }
     });
 
     // 초기 상태 설정
@@ -454,7 +430,7 @@ const config = {
     position: 'start',
     onDrop: onDrop,
     onSnapEnd: function() { 
-        // 깜빡임 방지 
+        // 깜빡임 방지 로직만 유지
     },
     pieceTheme: 'img/{piece}.png'
 };
