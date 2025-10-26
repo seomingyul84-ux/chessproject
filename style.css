@@ -14,7 +14,7 @@ body {
     padding: 30px;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    max-width: 900px;
+    max-width: 900px; 
     width: 100%;
     text-align: center;
 }
@@ -24,15 +24,20 @@ h1 {
     margin-bottom: 25px;
 }
 
+/* 🌟 game-area: 보드와 컨트롤 박스를 나란히 정렬 🌟 */
 .game-area {
     display: flex;
     gap: 20px;
     justify-content: center;
+    align-items: flex-start;
 }
 
 #myBoard {
+    /* 🌟 width는 HTML 인라인 스타일(400px)을 따르되, 최소 높이 지정 🌟 */
+    width: 400px; 
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
     border-radius: 5px;
+    min-height: 400px; /* 보드가 렌더링되지 않을 때 대비 최소 크기 확보 */
 }
 
 .right-panel {
@@ -59,7 +64,7 @@ h1 {
     font-size: 0.9em;
 }
 
-/* 슬라이더 스타일 (Dark Mode에 맞춤) */
+/* 슬라이더 스타일 */
 .difficulty-slider-box input[type="range"] {
     -webkit-appearance: none;
     width: 100%;
