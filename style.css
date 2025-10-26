@@ -95,27 +95,4 @@ h1 {
     margin-bottom: 10px;
     background-color: #eaf5ff;
 }
-
-/* 🌟 초보자 옵션 토글 버튼 스타일 🌟 */
-.toggle-btn {
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: 50%;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.3s, color 0.3s;
-    flex-shrink: 0; 
-}
-
-/* X 상태 (일반/전문가 모드) - 붉은색 */
-.toggle-off {
-    background-color: #f44336; 
-    color: white;
-}
-
-/* O 상태 (초보자 모드) - 초록색 */
-.toggle-on {
-    background-color: #4CAF50; 
-    color: white;
-}
+/* 토글 관련 스타일 제거 */
