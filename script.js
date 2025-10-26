@@ -28,7 +28,6 @@ function getPieceValue(piece) {
 // =========================================================
 // 2. API 통신 함수
 // =========================================================
-// (이 부분은 이전과 동일하게 유지됩니다.)
 
 async function postRapidApi(fen, selectedDepth) {
     const formBody = new URLSearchParams({
@@ -162,7 +161,6 @@ async function computerMove() {
     if (bestMoveLan) {
         
         // 🌟🌟🌟 0. 공짜 기물 잡기 (Free Material Capture) 로직 - 항상 작동 🌟🌟🌟
-        // 난이도에 관계없이 전술적 기회는 잡게 함
         let freeCaptureMove = null;
         let maxCaptureValue = 0;
         const NET_PROFIT_THRESHOLD = 150; 
