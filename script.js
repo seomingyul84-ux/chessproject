@@ -2,7 +2,7 @@
 // 1. 상수 및 초기화
 // =========================================================
 
-// 🚨 RapidAPI 설정
+// 🚨 RapidAPI 설정 (본인의 API 키로 교체하세요)
 const RAPIDAPI_KEY = "98c1a1d50bmshece777cb590225ep14cbbbjsn12fcb6a75780"; 
 const RAPIDAPI_HOST = "chess-stockfish-16-api.p.rapidapi.com";
 const STOCKFISH_API_URL = "https://" + RAPIDAPI_HOST + "/chess/api"; 
@@ -94,6 +94,7 @@ async function getBestMoveAndDepthFromStockfishApi(fen, selectedDepth) {
 // =========================================================
 
 // UCI 문자열을 받아서 chess.move를 안전하게 실행하는 헬퍼 함수
+// UCI 문자열을 from/to/promotion 객체로 변환하여 Chess.js에 전달
 function executeUciMove(uciMove) {
     if (!uciMove || uciMove.length < 4) return null;
     
@@ -196,14 +197,13 @@ async function computerMove() {
                 const safeRandomMoves = randomMoves.filter(move => {
                     const tempChess = new Chess(chess.fen());
                     
-                    // UCI/LAN 문자열을 사용하여 수 적용
+                    // 필터링 과정에서는 move.lan을 사용하여 임시 적용
                     tempChess.move(move.lan, { sloppy: true }); 
                     
                     const opponentMoves = tempChess.moves({ verbose: true });
                     for (const oppMove of opponentMoves) {
                         const tempOppChess = new Chess(tempChess.fen()); 
                         
-                        // UCI/LAN 문자열을 사용하여 수 적용
                         tempOppChess.move(oppMove.lan, { sloppy: true }); 
                         
                         if (tempOppChess.in_checkmate()) {
@@ -227,7 +227,6 @@ async function computerMove() {
                     for (const oppMove of opponentMoves) {
                         const tempOppChess = new Chess(tempChess.fen()); 
                         
-                        // UCI/LAN 문자열을 사용하여 수 적용
                         const opponentMoveResult = tempOppChess.move(oppMove.lan, { sloppy: true });
                         
                         if (opponentMoveResult) {
@@ -249,16 +248,24 @@ async function computerMove() {
             } // Level 10 이상 필터링 끝
 
             if (randomMoves.length > 0) {
-                // 안전한 수 중 랜덤 선택 및 적용 (executeUciMove 사용)
+                // 안전한 수 중 랜덤 선택
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
                 
-                moveResult = executeUciMove(randomMove.lan); 
+                // 🌟🌟🌟 UCI 문자열을 from/to 기반으로 직접 생성하여 executeUciMove에 전달 (안정화) 🌟🌟🌟
+                let randomMoveUci = randomMove.from + randomMove.to;
+                if (randomMove.promotion) {
+                    randomMoveUci += randomMove.promotion; 
+                }
+                
+                console.log(`LOG: Random Move 시도: ${randomMoveUci}`);
+                
+                moveResult = executeUciMove(randomMoveUci); 
                 
                 if (moveResult) {
                     finalMoveSan = moveResult.san; 
                     console.log(`LOG: Random Move 선택 (${selectedSkillLevel >= 10 ? '헌납 필터 적용' : '필터 미적용'}): ${finalMoveSan}`);
                 } else {
-                    console.error(`LOG: Random Move (${randomMove.lan}) 적용 실패!`);
+                    console.error(`LOG: Random Move (${randomMoveUci}) 적용 실패!`); 
                 }
 
             } else {
@@ -325,9 +332,18 @@ async function computerMove() {
         }
 
         if (movesToChoose.length > 0) {
-            // 필터링된 안전한 수 중 랜덤 선택 (executeUciMove 사용)
+            // 필터링된 안전한 수 중 랜덤 선택
             const randomMove = movesToChoose[Math.floor(Math.random() * movesToChoose.length)];
-            moveResult = executeUciMove(randomMove.lan);
+            
+            // 🌟🌟🌟 UCI 문자열을 from/to 기반으로 직접 생성하여 executeUciMove에 전달 (안정화) 🌟🌟🌟
+            let randomMoveUci = randomMove.from + randomMove.to;
+            if (randomMove.promotion) {
+                randomMoveUci += randomMove.promotion; 
+            }
+            
+            console.log(`LOG: Best Move 실패 시 대체 Random Move 시도: ${randomMoveUci}`);
+
+            moveResult = executeUciMove(randomMoveUci);
             
             if (moveResult) {
                 finalMoveSan = moveResult.san;
