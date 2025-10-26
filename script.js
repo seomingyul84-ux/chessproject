@@ -142,8 +142,15 @@ async function computerMove() {
     
     let currentFen = chess.fen(); 
     const fenParts = currentFen.split(' ');
+    
+    // 🌟🌟🌟 FEN 정규화 강화 로직 (d4 Be5 문제 해결 시도) 🌟🌟🌟
     if (fenParts.length < 6) {
-        currentFen = currentFen + ' 0 1'; 
+        const turn = chess.turn();
+        const castling = fenParts[2] || '-';
+        const enPassant = fenParts[3] || '-';
+        // 나머지 2파트 (halfmove, fullmove)를 0, 1로 설정하여 FEN을 완성합니다.
+        currentFen = `${fenParts[0]} ${fenParts[1]} ${castling} ${enPassant} 0 1`; 
+        console.warn(`LOG: FEN이 불완전하여 강제로 보강함: ${currentFen}`);
     }
     
     const difficultySlider = document.getElementById('difficultySlider');
@@ -420,8 +427,9 @@ const config = {
     draggable: true,
     position: 'start',
     onDrop: onDrop,
+    // 🌟🌟🌟 깜빡임 방지를 위해 onSnapEnd에서 보드 업데이트 제거 🌟🌟🌟
     onSnapEnd: function() { 
-        if (board) board.position(chess.fen()); 
+        // if (board) board.position(chess.fen()); 
     },
     pieceTheme: 'img/{piece}.png'
 };
