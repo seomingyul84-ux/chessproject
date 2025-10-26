@@ -18,28 +18,54 @@
         <div class="game-area">
             <div id="myBoard" style="width: 400px"></div>
             
-            <div class="controls">
-                <p id="status">게임을 시작하세요.</p>
-                
-                <div class="option-group">
-                    <h3>플레이어 설정</h3>
-                    <label for="playerColor">색상 선택:</label>
-                    <select id="playerColor" onchange="startNewGame()">
-                        <option value="w">백 (먼저 둠)</option>
-                        <option value="b">흑 (컴퓨터가 먼저 둠)</option>
-                    </select>
+            <div class="right-panel">
+                <div class="difficulty-slider-box">
+                    <label for="difficultySlider">레벨: <span id="difficultyLevel">16</span> (Depth: <span id="depthDisplay">10</span>)</label>
+                    <input type="range" id="difficultySlider" min="1" max="30" value="16">
                 </div>
                 
-                <div class="option-group">
-                    <h3>난이도 설정</h3>
-                    <label for="difficultySlider">레벨: <span id="difficultyLevel">1</span></label>
-                    <input type="range" id="difficultySlider" min="1" max="30" value="1">
+                <div class="game-controls-box">
+                    <h3 id="controlBoxHeader">레벨 16</h3>
+                    
+                    <div class="move-history">
+                        <div class="move-row">1. e4 <span class="black-move">c6</span></div>
+                        <div class="move-row selected">2. d4 <span class="black-move">d5</span></div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="icon-btn">⏮</button>
+                        <button class="icon-btn">⏪</button>
+                        <button class="icon-btn">▶️</button>
+                        <button class="icon-btn">⏩</button>
+                        <button class="icon-btn">⏭</button>
+                        <button class="icon-btn">☰</button>
+                    </div>
+                    
+                    <div class="control-icons">
+                        <button class="icon-btn">↩️</button>
+                        <button class="icon-btn">½</button>
+                        <button class="icon-btn">🏳️</button>
+                    </div>
+                    
+                    <div class="player-info">
+                        <p class="status-dot">⚫ 익명 플레이어</p>
+                        <p class="status-dot">⚪ 내 차례</p>
+                    </div>
+
+                    <div class="game-options">
+                        <p id="status">백 차례입니다.</p>
+                        
+                        <label for="playerColor">나의 색상 선택:</label>
+                        <select id="playerColor" onchange="startNewGame()">
+                            <option value="w">백 (White)</option>
+                            <option value="b">흑 (Black)</option>
+                        </select>
+                        
+                        <button onclick="startNewGame()">새 게임 시작</button>
+                    </div>
                 </div>
-                
-                <button onclick="startNewGame()">새 게임 시작</button>
             </div>
         </div>
-        
     </div>
 
     <script src="script.js"></script>
