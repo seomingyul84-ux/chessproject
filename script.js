@@ -3,7 +3,6 @@
 // =========================================================
 
 // 🚨 RapidAPI 설정 (본인의 API 키로 교체하세요)
-// ⚠️ 주의: 반드시 본인의 유효한 RapidAPI 키를 사용해야 합니다.
 const RAPIDAPI_KEY = "98c1a1d50bmshece777cb590225ep14cbbbjsn12fcb6a75780"; 
 const RAPIDAPI_HOST = "chess-stockfish-16-api.p.rapidapi.com";
 const STOCKFISH_API_URL = "https://" + RAPIDAPI_HOST + "/chess/api"; 
@@ -12,6 +11,7 @@ const chess = new Chess();
 let board = null; 
 let playerColor = 'w'; 
 let isEngineThinking = false; 
+let hasWarnedHighDifficulty = false; // 경고창을 한 번만 띄우기 위한 플래그
 
 // 기물 가치 정의 (CP 단위)
 const PIECE_VALUES = {
@@ -28,6 +28,7 @@ function getPieceValue(piece) {
 // =========================================================
 // 2. API 통신 함수
 // =========================================================
+// (이 부분은 이전과 동일하게 유지됩니다.)
 
 async function postRapidApi(fen, selectedDepth) {
     const formBody = new URLSearchParams({
@@ -134,7 +135,7 @@ async function computerMove() {
     let currentFen = chess.fen(); 
     const fenParts = currentFen.split(' ');
     
-    // FEN 정규화 강화 로직 (d4 Be5 문제 해결)
+    // FEN 정규화 강화 로직 
     if (fenParts.length < 6) {
         const turn = chess.turn();
         const castling = fenParts[2] || '-';
@@ -160,36 +161,35 @@ async function computerMove() {
 
     if (bestMoveLan) {
         
-        // 🌟🌟🌟 0. 공짜 기물 잡기 (Free Material Capture) 로직 - Level 20 이상에서만 작동 🌟🌟🌟
+        // 🌟🌟🌟 0. 공짜 기물 잡기 (Free Material Capture) 로직 - 항상 작동 🌟🌟🌟
+        // 난이도에 관계없이 전술적 기회는 잡게 함
         let freeCaptureMove = null;
-        if (selectedSkillLevel >= 20) { 
-            let maxCaptureValue = 0;
-            const NET_PROFIT_THRESHOLD = 150; 
+        let maxCaptureValue = 0;
+        const NET_PROFIT_THRESHOLD = 150; 
 
-            for (const move of moves) {
-                if (!move.captured) continue; 
+        for (const move of moves) {
+            if (!move.captured) continue; 
 
-                const capturedValue = getPieceValue(move.captured);
-                
-                const tempChess = new Chess(chess.fen());
-                tempChess.move(move.lan, { sloppy: true }); 
+            const capturedValue = getPieceValue(move.captured);
+            
+            const tempChess = new Chess(chess.fen());
+            tempChess.move(move.lan, { sloppy: true }); 
 
-                let maxOpponentGain = 0; 
-                const opponentMoves = tempChess.moves({ verbose: true });
-                
-                for (const oppMove of opponentMoves) {
-                    if (oppMove.captured) {
-                        const opponentCapturedValue = getPieceValue(oppMove.captured);
-                        maxOpponentGain = Math.max(maxOpponentGain, opponentCapturedValue);
-                    }
+            let maxOpponentGain = 0; 
+            const opponentMoves = tempChess.moves({ verbose: true });
+            
+            for (const oppMove of opponentMoves) {
+                if (oppMove.captured) {
+                    const opponentCapturedValue = getPieceValue(oppMove.captured);
+                    maxOpponentGain = Math.max(maxOpponentGain, opponentCapturedValue);
                 }
-                
-                const netValue = capturedValue - maxOpponentGain;
+            }
+            
+            const netValue = capturedValue - maxOpponentGain;
 
-                if (netValue >= NET_PROFIT_THRESHOLD && capturedValue > maxCaptureValue) {
-                     maxCaptureValue = capturedValue;
-                     freeCaptureMove = move;
-                }
+            if (netValue >= NET_PROFIT_THRESHOLD && capturedValue > maxCaptureValue) {
+                 maxCaptureValue = capturedValue;
+                 freeCaptureMove = move;
             }
         }
         
@@ -216,7 +216,7 @@ async function computerMove() {
         const MAX_DIFFICULTY = 30;
         const bestMoveProbability = selectedSkillLevel / MAX_DIFFICULTY;
         
-        let forceBestMove = chess.in_check(); // 체크 상태는 최적의 수 강제
+        let forceBestMove = chess.in_check(); 
         
         if (forceBestMove || Math.random() < bestMoveProbability) {
             moveResult = executeUciMove(bestMoveLan);
@@ -232,8 +232,8 @@ async function computerMove() {
             // Random Move 선택 로직
             let randomMoves = moves.filter(move => move.lan !== bestMoveLan);
             
-            // 🌟🌟🌟 Level 10 이상 필터 적용 🌟🌟🌟
-            if (selectedSkillLevel >= 1) { // 초보자 모드에서도 헌납 방지는 필요함
+            // 🌟🌟🌟 블런더 방지 필터 (Level 1 이상에서 작동) 🌟🌟🌟
+            if (selectedSkillLevel >= 1) { 
                 
                 // 1. M1 위협 방지 로직
                 const safeRandomMoves = randomMoves.filter(move => {
@@ -252,7 +252,7 @@ async function computerMove() {
                 randomMoves = safeRandomMoves;
 
 
-                // 2. 기물 헌납 방지 로직 (임계값 99 CP: 폰 헌납도 방지)
+                // 2. 기물 헌납 방지 로직 (임계값 99 CP)
                 const MATERIAL_LOSS_THRESHOLD = 99; 
                 
                 const noBlunderRandomMoves = randomMoves.filter(aiMove => {
@@ -263,7 +263,6 @@ async function computerMove() {
                     
                     for (const oppMove of opponentMoves) {
                         
-                        // 즉시 기물 헌납 검사 
                         if (oppMove.captured) {
                             let capturedPieceValue = getPieceValue(oppMove.captured);
                             
@@ -317,9 +316,9 @@ async function computerMove() {
 
         let movesToChoose = chess.moves({ verbose: true }); 
         
+        // Fallback에도 블런더 방지 필터 적용
         if (selectedSkillLevel >= 1) { 
             
-            // M1 위협 방지 로직
             const safeMoves = movesToChoose.filter(move => {
                 const tempChess = new Chess(chess.fen());
                 tempChess.move(move.lan, { sloppy: true }); 
@@ -335,7 +334,6 @@ async function computerMove() {
             });
             movesToChoose = safeMoves;
 
-            // 기물 헌납 방지 로직 (임계값 99 CP)
             const MATERIAL_LOSS_THRESHOLD = 99; 
             const noBlunderMoves = movesToChoose.filter(aiMove => {
                 const tempChess = new Chess(chess.fen());
@@ -382,7 +380,7 @@ async function computerMove() {
 }
 
 // =========================================================
-// 4. 난이도 및 보드 초기화 로직 (토글 기능)
+// 4. 난이도 및 보드 초기화 로직 (경고창 기능 추가)
 // =========================================================
 
 function startNewGame() {
@@ -416,44 +414,37 @@ function updateStatus() {
     document.getElementById('status').textContent = status;
 }
 
-// 🌟🌟🌟 초보자 옵션 토글 및 슬라이더 제어 로직 🌟🌟🌟
+// 🌟🌟🌟 난이도 슬라이더 경고 로직 추가 🌟🌟🌟
 function setupDifficultyControls() {
     const slider = document.getElementById('difficultySlider');
     const levelDisplay = document.getElementById('difficultyLevel');
-    const toggleBtn = document.getElementById('beginnerToggle');
     
     // 슬라이더 값 변경 이벤트
     slider.addEventListener('input', () => {
         levelDisplay.textContent = slider.value;
     });
-    
-    // 토글 버튼 클릭 이벤트
-    toggleBtn.addEventListener('click', () => {
-        const isBeginnerMode = toggleBtn.classList.contains('toggle-off'); // X 상태였다면 O로 바꿈
+
+    // 슬라이더 변경 완료 이벤트 (마우스를 떼거나 키보드를 놓을 때)
+    slider.addEventListener('change', () => {
+        const selectedLevel = parseInt(slider.value);
         
-        if (isBeginnerMode) {
-            // X -> O (초보자 모드)
-            toggleBtn.textContent = 'O';
-            toggleBtn.classList.remove('toggle-off');
-            toggleBtn.classList.add('toggle-on');
+        if (selectedLevel >= 10 && !hasWarnedHighDifficulty) {
+            const userConfirmed = confirm(
+                "난이도 10에서 30은 초보자를 위해 설정된 1에서 9 난이도에 비해 매우 어렵습니다. 정말로 플레이하고 싶으십니까?"
+            );
             
-            slider.min = '1';
-            slider.max = '9';
-            slider.value = '1'; // 초보자 모드 시작 값
-            
-        } else {
-            // O -> X (일반/전문가 모드)
-            toggleBtn.textContent = 'X';
-            toggleBtn.classList.remove('toggle-on');
-            toggleBtn.classList.add('toggle-off');
-            
-            slider.min = '10';
-            slider.max = '30';
-            slider.value = '10'; // 일반 모드 시작 값
+            if (userConfirmed) {
+                hasWarnedHighDifficulty = true; // 확인했으므로 다시 경고하지 않음
+            } else {
+                // 취소하면 레벨을 9로 되돌립니다.
+                slider.value = '9';
+                levelDisplay.textContent = '9';
+            }
         }
-        
-        // 슬라이더 값 및 표시 업데이트
-        levelDisplay.textContent = slider.value;
+        // 난이도가 9 이하로 내려가면 경고 플래그를 리셋 (선택적)
+        if (selectedLevel < 10) {
+             hasWarnedHighDifficulty = false;
+        }
     });
 
     // 초기 상태 설정
@@ -464,9 +455,8 @@ const config = {
     draggable: true,
     position: 'start',
     onDrop: onDrop,
-    // 🌟 깜빡임 방지 🌟
     onSnapEnd: function() { 
-        // 보드 업데이트 로직 제거 
+        // 깜빡임 방지 
     },
     pieceTheme: 'img/{piece}.png'
 };
