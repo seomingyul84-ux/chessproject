@@ -90,11 +90,10 @@ async function getBestMoveAndDepthFromStockfishApi(fen, selectedDepth) {
 }
 
 // =========================================================
-// 3. 게임 로직 및 이벤트 핸들러 (헌납 방지 로직 포함)
+// 3. 게임 로직 및 이벤트 핸들러 (헌납 방지 및 캡처 로직 포함)
 // =========================================================
 
 // UCI 문자열을 받아서 chess.move를 안전하게 실행하는 헬퍼 함수
-// UCI 문자열을 from/to/promotion 객체로 변환하여 Chess.js에 전달
 function executeUciMove(uciMove) {
     if (!uciMove || uciMove.length < 4) return null;
     
@@ -102,13 +101,11 @@ function executeUciMove(uciMove) {
     const to = uciMove.substring(2, 4);
     let promotion = undefined;
     
-    // 프로모션 처리 (e.g., a7a8q)
     if (uciMove.length === 5) {
         promotion = uciMove.substring(4, 5);
     }
     
     try {
-        // 객체 형식으로 move 실행 (가장 안정적인 방식)
         return chess.move({ from: from, to: to, promotion: promotion });
     } catch (e) {
         console.error("UCI Move 실행 중 예외 발생:", e);
@@ -121,12 +118,10 @@ function onDrop (source, target) {
         return 'snapback'; 
     }
     
-    // 플레이어의 수를 UCI 포맷으로 실행
     const move = chess.move({ from: source, to: target, promotion: 'q' });
     if (move === null) return 'snapback'; 
     
     updateStatus();
-    // 250ms 지연 후 AI 턴 시작
     window.setTimeout(computerMove, 250); 
 }
 
@@ -143,12 +138,11 @@ async function computerMove() {
     let currentFen = chess.fen(); 
     const fenParts = currentFen.split(' ');
     
-    // 🌟🌟🌟 FEN 정규화 강화 로직 (d4 Be5 문제 해결 시도) 🌟🌟🌟
+    // FEN 정규화 강화 로직 
     if (fenParts.length < 6) {
         const turn = chess.turn();
         const castling = fenParts[2] || '-';
         const enPassant = fenParts[3] || '-';
-        // 나머지 2파트 (halfmove, fullmove)를 0, 1로 설정하여 FEN을 완성합니다.
         currentFen = `${fenParts[0]} ${fenParts[1]} ${castling} ${enPassant} 0 1`; 
         console.warn(`LOG: FEN이 불완전하여 강제로 보강함: ${currentFen}`);
     }
@@ -166,11 +160,67 @@ async function computerMove() {
     let moveResult = null; 
     let finalMoveSan = null; 
     
-    // UCI/LAN 문자열이 필요하므로 verbose: true 사용
     const moves = chess.moves({ verbose: true }); 
 
     if (bestMoveLan) {
         
+        // 🌟🌟🌟 0. 공짜 기물 잡기 (Free Material Capture) 로직 🌟🌟🌟
+        // 난이도와 무관하게 전술적 기회 포착
+        let freeCaptureMove = null;
+        let maxCaptureValue = 0;
+        const NET_PROFIT_THRESHOLD = 150; // 순 이득 150 CP 이상 (나이트/비숍 이상 공짜 캡처)
+
+        for (const move of moves) {
+            if (!move.captured) continue; 
+
+            const capturedValue = getPieceValue(move.captured);
+            
+            // 1. 임시 수를 둡니다.
+            const tempChess = new Chess(chess.fen());
+            tempChess.move(move.lan, { sloppy: true }); 
+
+            // 2. 상대방의 응수를 검사하여 교환 손실을 확인합니다.
+            let maxOpponentGain = 0; 
+            const opponentMoves = tempChess.moves({ verbose: true });
+            
+            for (const oppMove of opponentMoves) {
+                if (oppMove.captured) {
+                    const opponentCapturedValue = getPieceValue(oppMove.captured);
+                    maxOpponentGain = Math.max(maxOpponentGain, opponentCapturedValue);
+                }
+            }
+            
+            // 3. 순 이득을 계산합니다. (내 이득 - 상대방 이득)
+            const netValue = capturedValue - maxOpponentGain;
+
+            // 4. 순 이득이 150 CP (대략 기물 하나 공짜)를 넘고, 
+            //    현재까지 찾은 캡처 중 가장 높은 가치를 가진 기물을 잡는 경우 선택
+            if (netValue >= NET_PROFIT_THRESHOLD && capturedValue > maxCaptureValue) {
+                 maxCaptureValue = capturedValue;
+                 freeCaptureMove = move;
+            }
+        }
+        
+        // 🌟🌟🌟 Free Capture Move가 발견되면 Best Move 확률 무시하고 강제 실행 🌟🌟🌟
+        if (freeCaptureMove) {
+            const uciMove = freeCaptureMove.from + freeCaptureMove.to + (freeCaptureMove.promotion || '');
+            moveResult = executeUciMove(uciMove);
+            
+            if (moveResult) {
+                finalMoveSan = moveResult.san;
+                console.log(`LOG: 💰 Free Material Capture 선택: ${finalMoveSan} (Net Profit: ${maxCaptureValue - maxOpponentGain} CP)`);
+                
+                if (board) board.position(chess.fen()); 
+                document.getElementById('status').textContent = `컴퓨터가 ${finalMoveSan} 수를 두었습니다.`;
+                isEngineThinking = false;
+                updateStatus();
+                return; // 캡처 후 함수 종료
+            } else {
+                console.error(`LOG: Free Capture Move (${uciMove}) 적용 실패! Best Move 로직으로 회귀.`);
+            }
+        }
+        
+        // 1. Best Move 선택 확률 로직 (Free Capture 실패 또는 없을 경우 실행)
         const MAX_DIFFICULTY = 30;
         const bestMoveProbability = selectedSkillLevel / MAX_DIFFICULTY;
         
@@ -203,16 +253,11 @@ async function computerMove() {
                 
                 const safeRandomMoves = randomMoves.filter(move => {
                     const tempChess = new Chess(chess.fen());
-                    
-                    // 필터링 과정에서는 move.lan을 사용하여 임시 적용
                     tempChess.move(move.lan, { sloppy: true }); 
-                    
                     const opponentMoves = tempChess.moves({ verbose: true });
                     for (const oppMove of opponentMoves) {
                         const tempOppChess = new Chess(tempChess.fen()); 
-                        
                         tempOppChess.move(oppMove.lan, { sloppy: true }); 
-                        
                         if (tempOppChess.in_checkmate()) {
                             return false; // M1 위협이 있는 수 제외
                         }
@@ -227,32 +272,23 @@ async function computerMove() {
                 
                 const noBlunderRandomMoves = randomMoves.filter(aiMove => {
                     const tempChess = new Chess(chess.fen());
-                    
-                    // AI의 수를 임시 적용합니다.
                     tempChess.move(aiMove.lan, { sloppy: true }); 
 
-                    // 상대방이 응수할 수 있는 모든 유효한 수를 확인합니다.
                     const opponentMoves = tempChess.moves({ verbose: true });
                     
                     for (const oppMove of opponentMoves) {
-                        const tempOppChess = new Chess(tempChess.fen()); 
                         
-                        // 상대방이 응수 수를 둡니다.
-                        const opponentMoveResult = tempOppChess.move(oppMove.lan, { sloppy: true });
-                        
-                        if (opponentMoveResult && opponentMoveResult.captured) {
-                            let lostPieceValue = getPieceValue(opponentMoveResult.captured);
+                        // 즉시 기물 헌납 검사 (Bxf8와 같은 공짜 캡처 방지)
+                        if (oppMove.captured) {
+                            let capturedPieceValue = getPieceValue(oppMove.captured);
                             
-                            // 폰(100 CP) 이상의 손실 유발 시 헌납으로 간주
-                            if (lostPieceValue > MATERIAL_LOSS_THRESHOLD) {
-                                
-                                console.warn(`BLUNDER DETECTED: ${aiMove.lan} -> ${oppMove.lan} 응수 시 ${lostPieceValue} CP 손실 유발`);
-
-                                return false; // 헌납하는 수는 제외
+                            if (capturedPieceValue > MATERIAL_LOSS_THRESHOLD) {
+                                console.warn(`BLUNDER DETECTED: ${aiMove.lan} -> ${oppMove.lan} 응수 시 ${capturedPieceValue} CP 손실 유발 (즉시 기물 헌납)`);
+                                return false; 
                             }
                         }
                     }
-                    return true; // 헌납하지 않는 수만 통과
+                    return true; 
                 });
                 
                 randomMoves = noBlunderRandomMoves; 
@@ -262,11 +298,7 @@ async function computerMove() {
                 // 안전한 수 중 랜덤 선택
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
                 
-                // UCI 문자열을 from/to 기반으로 직접 생성하여 executeUciMove에 전달 (안정화)
-                let randomMoveUci = randomMove.from + randomMove.to;
-                if (randomMove.promotion) {
-                    randomMoveUci += randomMove.promotion; 
-                }
+                const randomMoveUci = randomMove.from + randomMove.to + (randomMove.promotion || '');
                 
                 console.log(`LOG: Random Move 시도: ${randomMoveUci}`);
                 
@@ -301,9 +333,11 @@ async function computerMove() {
     
     } else {
         // [B] Best Move 찾기 실패 시 (대체 로직: 모든 유효한 수 중 필터링 후 랜덤 선택)
+        // 이 로직에도 Free Capture Move가 적용될 수 있도록, 위 Free Capture 로직을 별도 함수로 분리하는 것이 이상적이지만,
+        // 현재는 Best Move 실패 시에는 Random Move 로직만 실행하도록 유지합니다.
         console.warn("LOG: Stockfish API 응답 실패. 대체 Random Move를 시도합니다.");
 
-        let movesToChoose = chess.moves({ verbose: true }); // 모든 유효한 수로 시작
+        let movesToChoose = chess.moves({ verbose: true }); 
         
         // 🌟🌟🌟 Level 10 이상 필터 적용 로직 재활용 🌟🌟🌟
         if (selectedSkillLevel >= 10) {
@@ -328,22 +362,16 @@ async function computerMove() {
             const MATERIAL_LOSS_THRESHOLD = 99; 
             const noBlunderMoves = movesToChoose.filter(aiMove => {
                 const tempChess = new Chess(chess.fen());
-                
-                // AI의 수를 임시 적용합니다.
                 tempChess.move(aiMove.lan, { sloppy: true }); 
-
-                // 상대방이 응수할 수 있는 모든 유효한 수를 확인합니다.
                 const opponentMoves = tempChess.moves({ verbose: true });
 
                 for (const oppMove of opponentMoves) {
-                    const tempOppChess = new Chess(tempChess.fen()); 
-                    const opponentMoveResult = tempOppChess.move(oppMove.lan, { sloppy: true });
                     
-                    if (opponentMoveResult && opponentMoveResult.captured) {
-                        let lostPieceValue = getPieceValue(opponentMoveResult.captured);
+                    if (oppMove.captured) {
+                        let capturedPieceValue = getPieceValue(oppMove.captured);
                         
-                        if (lostPieceValue > MATERIAL_LOSS_THRESHOLD) {
-                             console.warn(`BLUNDER DETECTED (FALLBACK): ${aiMove.lan} -> ${oppMove.lan} 응수 시 ${lostPieceValue} CP 손실 유발`);
+                        if (capturedPieceValue > MATERIAL_LOSS_THRESHOLD) {
+                             console.warn(`BLUNDER DETECTED (FALLBACK): ${aiMove.lan} -> ${oppMove.lan} 응수 시 ${capturedPieceValue} CP 손실 유발 (즉시 기물 헌납)`);
                             return false; 
                         }
                     }
@@ -357,12 +385,8 @@ async function computerMove() {
             // 필터링된 안전한 수 중 랜덤 선택
             const randomMove = movesToChoose[Math.floor(Math.random() * movesToChoose.length)];
             
-            // UCI 문자열을 from/to 기반으로 직접 생성하여 executeUciMove에 전달 (안정화)
-            let randomMoveUci = randomMove.from + randomMove.to;
-            if (randomMove.promotion) {
-                randomMoveUci += randomMove.promotion; 
-            }
-            
+            const randomMoveUci = randomMove.from + randomMove.to + (randomMove.promotion || '');
+
             console.log(`LOG: Best Move 실패 시 대체 Random Move 시도: ${randomMoveUci}`);
 
             moveResult = executeUciMove(randomMoveUci);
@@ -376,7 +400,6 @@ async function computerMove() {
                  document.getElementById('status').textContent = `⚠️ 엔진이 수를 찾지 못했고, 대체 수도 적용 실패!`;
             }
         } else {
-            // 필터링 후 남은 수가 없는 경우
             isEngineThinking = false;
             updateStatus();
             return; 
@@ -427,9 +450,8 @@ const config = {
     draggable: true,
     position: 'start',
     onDrop: onDrop,
-    // 🌟🌟🌟 깜빡임 방지를 위해 onSnapEnd에서 보드 업데이트 제거 🌟🌟🌟
     onSnapEnd: function() { 
-        // if (board) board.position(chess.fen()); 
+        // 깜빡임 방지를 위해 보드 업데이트 제거 
     },
     pieceTheme: 'img/{piece}.png'
 };
