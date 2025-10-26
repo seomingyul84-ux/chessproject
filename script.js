@@ -416,7 +416,7 @@ function setupDifficultyControls() {
     const slider = document.getElementById('difficultySlider');
     const levelDisplay = document.getElementById('difficultyLevel');
     const depthDisplay = document.getElementById('depthDisplay'); 
-    const controlBoxHeader = document.getElementById('controlBoxHeader'); // 🌟 새로운 헤더 요소 🌟
+    const controlBoxHeader = document.getElementById('controlBoxHeader'); 
     
     const updateDisplays = () => {
         const selectedSkillLevel = parseInt(slider.value);
@@ -440,7 +440,7 @@ function setupDifficultyControls() {
 }
 
 // =========================================================
-// 5. 초기 실행 
+// 5. 초기 실행
 // =========================================================
 
 const config = {
@@ -450,10 +450,13 @@ const config = {
     onSnapEnd: function() { 
         if (board) board.position(chess.fen());
     },
-    pieceTheme: 'img/{piece}.png'
+    // ⚠️ Chessboard.js가 기물 이미지를 찾을 수 있도록 폴더 경로를 확인하세요.
+    // 기본적으로 'img/chesspieces/wikipedia/' 경로에 기물 이미지가 있어야 합니다.
+    pieceTheme: 'img/{piece}.png' 
 };
 
 $(document).ready(function() {
+    // 🌟 보드 초기화 🌟
     board = ChessBoard('myBoard', config); 
     setupDifficultyControls(); // 난이도 컨트롤 초기화 및 UI 연동
     startNewGame(); 
