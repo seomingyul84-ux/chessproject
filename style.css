@@ -24,7 +24,6 @@ h1 {
     margin-bottom: 25px;
 }
 
-/* game-area: 보드와 컨트롤 박스를 나란히 정렬 */
 .game-area {
     display: flex;
     gap: 20px;
@@ -37,8 +36,6 @@ h1 {
     min-height: 400px; 
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
     border-radius: 5px;
-    position: relative;
-    z-index: 1; 
 }
 
 .right-panel {
@@ -48,59 +45,28 @@ h1 {
     gap: 15px;
 }
 
-/* 난이도 슬라이더 박스 스타일 */
+/* 🌟🌟🌟 슬라이더 CSS (다시 포함) 🌟🌟🌟 */
 .difficulty-slider-box {
     background-color: #3f3e3c;
-    padding: 10px 15px;
+    padding: 15px;
     border-radius: 5px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     text-align: left;
-    position: relative; 
-    z-index: 5; /* 컨테이너 기준 */
+    color: #ccc;
 }
 
 .difficulty-slider-box label {
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 10px;
     font-weight: bold;
-    color: #ccc;
-    font-size: 0.9em;
-    position: relative;
-    z-index: 1; 
+    color: #f0f0f0;
 }
 
-/* 🌟🌟🌟 슬라이더 작동을 위한 z-index 강제 적용 🌟🌟🌟 */
-.difficulty-slider-box input[type="range"] {
-    -webkit-appearance: none;
-    appearance: none; 
+#difficultySlider {
     width: 100%;
-    height: 8px;
-    background: #555;
-    outline: none;
-    opacity: 0.8;
-    transition: opacity .15s;
-    border-radius: 4px;
-    cursor: pointer; 
-    position: relative;
-    z-index: 10; /* 가장 높게 설정하여 클릭 이벤트를 확실히 받음 */
+    /* 기타 슬라이더 스타일 */
 }
-.difficulty-slider-box input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #007bff;
-    cursor: pointer;
-}
-.difficulty-slider-box input[type="range"]::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #007bff;
-    cursor: pointer;
-    border: none;
-}
+/* ------------------------------------- */
 
 /* 게임 컨트롤 박스 스타일 */
 .game-controls-box {
@@ -111,7 +77,6 @@ h1 {
     text-align: left;
     color: #ccc;
 }
-
 .game-controls-box h3 {
     margin-top: 0;
     color: #f0f0f0;
@@ -120,56 +85,6 @@ h1 {
     padding-bottom: 8px;
 }
 
-/* Move History Style */
-.move-history {
-    font-family: monospace;
-    font-size: 0.9em;
-    padding: 5px 0;
-}
-.move-row {
-    padding: 2px 5px;
-    margin-bottom: 3px;
-    display: flex;
-    justify-content: space-between;
-}
-.move-row.selected {
-    background-color: #007bff;
-    border-radius: 3px;
-    color: white;
-}
-.black-move {
-    margin-left: 10px;
-}
-
-/* Action Buttons */
-.action-buttons, .control-icons {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
-.icon-btn {
-    background: #555;
-    border: none;
-    color: #f0f0f0;
-    padding: 8px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 1em;
-}
-.icon-btn:hover {
-    background: #666;
-}
-
-.player-info {
-    border-top: 1px solid #555;
-    padding-top: 10px;
-    margin-top: 10px;
-}
-.status-dot {
-    font-size: 0.9em;
-    margin: 5px 0;
-}
 /* 기존 게임 옵션 스타일 */
 .game-options {
     display: flex;
@@ -179,24 +94,16 @@ h1 {
     border-top: 1px solid #555;
     margin-top: 10px;
 }
-.game-options label {
-    font-weight: normal;
-}
-.game-options select,
+
 .game-options button {
     width: 100%;
     padding: 10px;
     border-radius: 5px;
-    border: 1px solid #555;
-    box-sizing: border-box;
-    margin-top: 5px;
-    background-color: #555;
-    color: #f0f0f0;
-}
-
-.game-options button {
-    background-color: #007bff;
     border: none;
+    box-sizing: border-box;
+    background-color: #007bff;
+    color: #f0f0f0;
+    cursor: pointer;
 }
 
 #status {
