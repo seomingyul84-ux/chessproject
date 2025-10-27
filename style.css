@@ -45,7 +45,7 @@ h1 {
     gap: 15px;
 }
 
-/* 🌟🌟🌟 슬라이더 CSS (다시 포함) 🌟🌟🌟 */
+/* 🌟🌟🌟 슬라이더 CSS 🌟🌟🌟 */
 .difficulty-slider-box {
     background-color: #3f3e3c;
     padding: 15px;
@@ -64,7 +64,6 @@ h1 {
 
 #difficultySlider {
     width: 100%;
-    /* 기타 슬라이더 스타일 */
 }
 /* ------------------------------------- */
 
@@ -95,14 +94,21 @@ h1 {
     margin-top: 10px;
 }
 
+.game-options select,
 .game-options button {
     width: 100%;
     padding: 10px;
     border-radius: 5px;
-    border: none;
+    border: 1px solid #555;
     box-sizing: border-box;
-    background-color: #007bff;
+    margin-top: 5px;
+    background-color: #555;
     color: #f0f0f0;
+}
+
+.game-options button {
+    background-color: #007bff;
+    border: none;
     cursor: pointer;
 }
 
