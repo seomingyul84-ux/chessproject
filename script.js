@@ -392,7 +392,8 @@ const config = {
     onSnapEnd: function() { 
         if (board) board.position(chess.fen());
     },
-    // ⚠️ 기물 이미지가 'img/{piece}.png' 경로에 있는지 확인하세요.
+    // 🌟🌟🌟 사용자 요청대로 '/img' 바로 아래 파일이 있음을 지정합니다. 🌟🌟🌟
+    // 이 설정은 프로젝트 루트의 /img/wP.png, /img/bK.png 파일 등을 찾습니다.
     pieceTheme: 'img/{piece}.png' 
 };
 
