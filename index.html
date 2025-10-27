@@ -1,11 +1,11 @@
-
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>Stockfish Chess AI</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=202510271315"> 
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://unpkg.com/chessboardjs@1.0.0/lib/chessboard-1.0.0.min.js"></script>
@@ -21,6 +21,7 @@
             <div id="myBoard" style="width: 400px"></div>
             
             <div class="right-panel">
+                
                 <div class="difficulty-slider-box">
                     <label>레벨: <span id="difficultyLevel">16</span> (Depth: <span id="depthDisplay">10</span>)</label>
                     <input type="range" id="difficultySlider" min="1" max="30" value="16">
@@ -29,31 +30,6 @@
                 <div class="game-controls-box">
                     <h3 id="controlBoxHeader">레벨 16</h3>
                     
-                    <div class="move-history">
-                        <div class="move-row">1. e4 <span class="black-move">c6</span></div>
-                        <div class="move-row selected">2. d4 <span class="black-move">d5</span></div>
-                    </div>
-                    
-                    <div class="action-buttons">
-                        <button class="icon-btn">⏮</button>
-                        <button class="icon-btn">⏪</button>
-                        <button class="icon-btn">▶️</button>
-                        <button class="icon-btn">⏩</button>
-                        <button class="icon-btn">⏭</button>
-                        <button class="icon-btn">☰</button>
-                    </div>
-                    
-                    <div class="control-icons">
-                        <button class="icon-btn">↩️</button>
-                        <button class="icon-btn">½</button>
-                        <button class="icon-btn">🏳️</button>
-                    </div>
-                    
-                    <div class="player-info">
-                        <p class="status-dot">⚫ 익명 플레이어</p>
-                        <p class="status-dot">⚪ 내 차례</p>
-                    </div>
-
                     <div class="game-options">
                         <p id="status">백 차례입니다.</p>
                         
@@ -70,6 +46,6 @@
         </div>
     </div>
 
-    <script src="script.js?v=1.1"></script>
+    <script src="script.js?v=202510271315"></script>
 </body>
 </html>
