@@ -86,7 +86,7 @@ async function getBestMoveAndDepthFromStockfishApi(fen, selectedDepth) {
 }
 
 // =========================================================
-// 3. 게임 로직 및 이벤트 핸들러 (AI 로직 복구됨)
+// 3. 게임 로직 및 이벤트 핸들러 (AI 로직 포함)
 // =========================================================
 
 function executeUciMove(uciMove) {
@@ -411,7 +411,6 @@ function updateStatus() {
     document.getElementById('status').textContent = status;
 }
 
-// 난이도 슬라이더 기본 설정 로직 (UI 표시 및 연동)
 function setupDifficultyControls() {
     const slider = document.getElementById('difficultySlider');
     const levelDisplay = document.getElementById('difficultyLevel');
@@ -422,25 +421,20 @@ function setupDifficultyControls() {
         const selectedSkillLevel = parseInt(slider.value);
         levelDisplay.textContent = selectedSkillLevel;
         
-        // Depth 계산 및 표시
         const displayDepth = Math.max(6, Math.floor(selectedSkillLevel * 0.7) + 4);
         depthDisplay.textContent = displayDepth;
         
-        // 🌟 컨트롤 박스 헤더 업데이트: "레벨 [슬라이더 값]" 🌟
         if (controlBoxHeader) {
             controlBoxHeader.textContent = `레벨 ${selectedSkillLevel}`;
         }
     };
     
-    // 슬라이더 값 변경 이벤트
     slider.addEventListener('input', updateDisplays);
-
-    // 초기 상태 설정
     updateDisplays(); 
 }
 
 // =========================================================
-// 5. 초기 실행
+// 5. 초기 실행 (ChessBoard is not defined 오류 해결 포함)
 // =========================================================
 
 const config = {
@@ -450,15 +444,14 @@ const config = {
     onSnapEnd: function() { 
         if (board) board.position(chess.fen());
     },
-    // ⚠️ Chessboard.js가 기물 이미지를 찾을 수 있도록 폴더 경로를 확인하세요.
-    // 기본적으로 'img/chesspieces/wikipedia/' 경로에 기물 이미지가 있어야 합니다.
+    // ⚠️ 기물 이미지가 'img/{piece}.png' 경로에 있는지 확인하세요.
     pieceTheme: 'img/{piece}.png' 
 };
 
 $(document).ready(function() {
-    // 🌟 보드 초기화 🌟
+    // 🌟 jQuery가 로드된 후 ChessBoard를 초기화합니다. 🌟
     board = ChessBoard('myBoard', config); 
-    setupDifficultyControls(); // 난이도 컨트롤 초기화 및 UI 연동
+    setupDifficultyControls(); 
     startNewGame(); 
     
     document.getElementById('playerColor').addEventListener('change', startNewGame);
