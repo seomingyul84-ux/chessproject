@@ -24,19 +24,21 @@ h1 {
     margin-bottom: 25px;
 }
 
-/* 🌟 game-area: 보드와 컨트롤 박스를 나란히 정렬 🌟 */
+/* game-area: 보드와 컨트롤 박스를 나란히 정렬 */
 .game-area {
     display: flex;
     gap: 20px;
     justify-content: center;
-    align-items: flex-start;
 }
 
 #myBoard {
+    /* 보드가 반드시 보이도록 최소 크기 확보 */
     width: 400px; 
+    min-height: 400px; 
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
     border-radius: 5px;
-    min-height: 400px; /* 보드 미표시 방지 */
+    position: relative;
+    z-index: 1; 
 }
 
 .right-panel {
@@ -53,6 +55,8 @@ h1 {
     border-radius: 5px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     text-align: left;
+    position: relative; 
+    z-index: 5; /* 컨테이너 기준 */
 }
 
 .difficulty-slider-box label {
@@ -61,11 +65,14 @@ h1 {
     font-weight: bold;
     color: #ccc;
     font-size: 0.9em;
+    position: relative;
+    z-index: 1; 
 }
 
-/* 슬라이더 스타일 */
+/* 🌟🌟🌟 슬라이더 작동을 위한 z-index 강제 적용 🌟🌟🌟 */
 .difficulty-slider-box input[type="range"] {
     -webkit-appearance: none;
+    appearance: none; 
     width: 100%;
     height: 8px;
     background: #555;
@@ -73,6 +80,9 @@ h1 {
     opacity: 0.8;
     transition: opacity .15s;
     border-radius: 4px;
+    cursor: pointer; 
+    position: relative;
+    z-index: 10; /* 가장 높게 설정하여 클릭 이벤트를 확실히 받음 */
 }
 .difficulty-slider-box input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -82,6 +92,14 @@ h1 {
     border-radius: 50%;
     background: #007bff;
     cursor: pointer;
+}
+.difficulty-slider-box input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #007bff;
+    cursor: pointer;
+    border: none;
 }
 
 /* 게임 컨트롤 박스 스타일 */
@@ -191,4 +209,3 @@ h1 {
     background-color: #1a2c3a;
     color: #7abaff;
 }
-
