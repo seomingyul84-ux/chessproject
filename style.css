@@ -14,8 +14,9 @@ body {
     padding: 30px;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    max-width: 900px; 
-    width: 100%;
+    /* 🌟🌟🌟 수정: 최대 너비를 1200px로 크게 늘려 화면을 넓게 사용 🌟🌟🌟 */
+    max-width: 1200px; 
+    width: 90%; /* 화면 너비의 90%를 사용하도록 설정 */
     text-align: center;
 }
 
@@ -26,14 +27,15 @@ h1 {
 
 .game-area {
     display: flex;
-    gap: 20px;
-    justify-content: center;
+    /* 🌟🌟🌟 수정: 보드와 패널이 넓은 화면에서 가운데 정렬되도록 함 🌟🌟🌟 */
+    justify-content: center; 
+    gap: 40px; /* 간격을 넓힘 */
 }
 
 #myBoard {
-    /* 보드가 반드시 보이도록 최소 크기 확보 */
-    width: 400px; 
-    min-height: 400px; 
+    /* 🌟🌟🌟 수정: 보드 크기를 400px에서 600px로 확대 🌟🌟🌟 */
+    width: 600px; 
+    min-height: 600px; 
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
     border-radius: 5px;
 }
@@ -41,11 +43,14 @@ h1 {
 .right-panel {
     display: flex;
     flex-direction: column;
-    width: 250px;
+    /* 🌟🌟🌟 수정: 패널 너비를 250px에서 300px로 확대 🌟🌟🌟 */
+    width: 300px;
     gap: 15px;
 }
 
-/* 🌟🌟🌟 슬라이더 CSS 🌟🌟🌟 */
+/* 🌟🌟🌟 (나머지 CSS 스타일은 동일합니다) 🌟🌟🌟 */
+
+/* 슬라이더 CSS */
 .difficulty-slider-box {
     background-color: #3f3e3c;
     padding: 15px;
@@ -65,7 +70,6 @@ h1 {
 #difficultySlider {
     width: 100%;
 }
-/* ------------------------------------- */
 
 /* 게임 컨트롤 박스 스타일 */
 .game-controls-box {
@@ -75,6 +79,8 @@ h1 {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     text-align: left;
     color: #ccc;
+    /* 남은 공간을 모두 차지하도록 flex-grow 추가 */
+    flex-grow: 1; 
 }
 .game-controls-box h3 {
     margin-top: 0;
