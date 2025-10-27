@@ -33,11 +33,10 @@ h1 {
 }
 
 #myBoard {
-    /* 🌟 width는 HTML 인라인 스타일(400px)을 따르되, 최소 높이 지정 🌟 */
     width: 400px; 
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
     border-radius: 5px;
-    min-height: 400px; /* 보드가 렌더링되지 않을 때 대비 최소 크기 확보 */
+    min-height: 400px; /* 보드 미표시 방지 */
 }
 
 .right-panel {
@@ -192,3 +191,4 @@ h1 {
     background-color: #1a2c3a;
     color: #7abaff;
 }
+
