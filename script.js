@@ -120,7 +120,7 @@ function onDrop (source, target) {
     window.setTimeout(computerMove, 250); 
 }
 
-// 컴퓨터 수 두기 함수
+// 컴퓨터 수 두기 함수 (랜덤 무브, 헌납 방지 포함)
 async function computerMove() {
     if (chess.game_over() || isEngineThinking || chess.turn() === playerColor) {
         if (chess.turn() === playerColor) console.log("LOG: 플레이어 차례이므로 건너킵니다.");
@@ -133,7 +133,6 @@ async function computerMove() {
     let currentFen = chess.fen(); 
     const fenParts = currentFen.split(' ');
     
-    // FEN 정규화 강화 로직 
     if (fenParts.length < 6) {
         const turn = chess.turn();
         const castling = fenParts[2] || '-';
@@ -159,7 +158,7 @@ async function computerMove() {
 
     if (bestMoveLan) {
         
-        // 🌟🌟🌟 0. 공짜 기물 잡기 (Free Material Capture) 로직 - 항상 작동 🌟🌟🌟
+        // 🌟🌟🌟 공짜 기물 잡기 (Free Material Capture) 로직 🌟🌟🌟
         let freeCaptureMove = null;
         let maxCaptureValue = 0;
         const NET_PROFIT_THRESHOLD = 150; 
@@ -190,7 +189,7 @@ async function computerMove() {
             }
         }
         
-        // Free Capture Move가 발견되면 Best Move 확률 무시하고 강제 실행 
+        // Free Capture Move가 발견되면 강제 실행 
         if (freeCaptureMove) {
             const uciMove = freeCaptureMove.from + freeCaptureMove.to + (freeCaptureMove.promotion || '');
             moveResult = executeUciMove(uciMove);
@@ -226,13 +225,12 @@ async function computerMove() {
             }
 
         } else {
-            // Random Move 선택 로직
+            // 🌟🌟🌟 Random Move 선택 및 블런더 방지 로직 🌟🌟🌟
             let randomMoves = moves.filter(move => move.lan !== bestMoveLan);
             
-            // 🌟🌟🌟 블런더 방지 필터 (Level 1 이상에서 작동) 🌟🌟🌟
             if (selectedSkillLevel >= 1) { 
                 
-                // 1. M1 위협 방지 로직
+                // M1 위협 방지 로직
                 const safeRandomMoves = randomMoves.filter(move => {
                     const tempChess = new Chess(chess.fen());
                     tempChess.move(move.lan, { sloppy: true }); 
@@ -249,7 +247,7 @@ async function computerMove() {
                 randomMoves = safeRandomMoves;
 
 
-                // 2. 기물 헌납 방지 로직 (임계값 99 CP)
+                // 헌납 방지 필터 (기물 손실 임계값 99 CP)
                 const MATERIAL_LOSS_THRESHOLD = 99; 
                 
                 const noBlunderRandomMoves = randomMoves.filter(aiMove => {
@@ -289,6 +287,7 @@ async function computerMove() {
                 }
 
             } else {
+                // 안전한 수가 없으면 Best Move로 강제 회귀
                 moveResult = executeUciMove(bestMoveLan);
                 if (moveResult) {
                     finalMoveSan = moveResult.san; 
@@ -309,50 +308,10 @@ async function computerMove() {
     
     } else {
         // [B] Best Move 찾기 실패 시 대체 로직
-        console.warn("LOG: Stockfish API 응답 실패. 대체 Random Move를 시도합니다.");
-
+        // (이 로직은 API 문제 시 유효한 랜덤 수로 대체합니다.)
+        
         let movesToChoose = chess.moves({ verbose: true }); 
         
-        // Fallback에도 블런더 방지 필터 적용
-        if (selectedSkillLevel >= 1) { 
-            
-            const safeMoves = movesToChoose.filter(move => {
-                const tempChess = new Chess(chess.fen());
-                tempChess.move(move.lan, { sloppy: true }); 
-                const opponentMoves = tempChess.moves({ verbose: true });
-                for (const oppMove of opponentMoves) {
-                    const tempOppChess = new Chess(tempChess.fen()); 
-                    tempOppChess.move(oppMove.lan, { sloppy: true }); 
-                    if (tempOppChess.in_checkmate()) {
-                        return false;
-                    }
-                }
-                return true;
-            });
-            movesToChoose = safeMoves;
-
-            const MATERIAL_LOSS_THRESHOLD = 99; 
-            const noBlunderMoves = movesToChoose.filter(aiMove => {
-                const tempChess = new Chess(chess.fen());
-                tempChess.move(aiMove.lan, { sloppy: true }); 
-                const opponentMoves = tempChess.moves({ verbose: true });
-
-                for (const oppMove of opponentMoves) {
-                    
-                    if (oppMove.captured) {
-                        let capturedPieceValue = getPieceValue(oppMove.captured);
-                        
-                        if (capturedPieceValue > MATERIAL_LOSS_THRESHOLD) {
-                             console.warn(`BLUNDER DETECTED (FALLBACK): ${aiMove.lan} -> ${oppMove.lan} 응수 시 ${capturedPieceValue} CP 손실 유발`);
-                            return false; 
-                        }
-                    }
-                }
-                return true;
-            });
-            movesToChoose = noBlunderMoves;
-        }
-
         if (movesToChoose.length > 0) {
             const randomMove = movesToChoose[Math.floor(Math.random() * movesToChoose.length)];
             const randomMoveUci = randomMove.from + randomMove.to + (randomMove.promotion || '');
@@ -411,27 +370,16 @@ function updateStatus() {
     document.getElementById('status').textContent = status;
 }
 
-function setupDifficultyControls() {
-    const slider = document.getElementById('difficultySlider');
-    const levelDisplay = document.getElementById('difficultyLevel');
-    const depthDisplay = document.getElementById('depthDisplay'); 
-    const controlBoxHeader = document.getElementById('controlBoxHeader'); 
+// 🌟🌟🌟 슬라이더 값 변경 시 UI 업데이트 함수 🌟🌟🌟
+function updateDifficultyDisplay(level) {
+    // 난이도 레벨(1~30)을 Stockfish Depth로 변환하는 공식
+    const depth = Math.max(6, Math.floor(level * 0.7) + 4);
     
-    const updateDisplays = () => {
-        const selectedSkillLevel = parseInt(slider.value);
-        levelDisplay.textContent = selectedSkillLevel;
-        
-        const displayDepth = Math.max(6, Math.floor(selectedSkillLevel * 0.7) + 4);
-        depthDisplay.textContent = displayDepth;
-        
-        if (controlBoxHeader) {
-            controlBoxHeader.textContent = `레벨 ${selectedSkillLevel}`;
-        }
-    };
-    
-    slider.addEventListener('input', updateDisplays);
-    updateDisplays(); 
+    $('#difficultyLevel').text(level);
+    $('#depthDisplay').text(depth);
+    $('#controlBoxHeader').text(`레벨 ${level}`);
 }
+
 
 // =========================================================
 // 5. 초기 실행 (ChessBoard is not defined 오류 해결 포함)
@@ -449,11 +397,23 @@ const config = {
 };
 
 $(document).ready(function() {
-    // 🌟 jQuery가 로드된 후 ChessBoard를 초기화합니다. 🌟
+    // 1. ChessBoard 초기화
     board = ChessBoard('myBoard', config); 
-    setupDifficultyControls(); 
+    
+    // 2. 🌟🌟🌟 슬라이더 이벤트 바인딩 🌟🌟🌟
+    const difficultySlider = $('#difficultySlider');
+    
+    // 초기값 설정
+    updateDifficultyDisplay(difficultySlider.val());
+
+    // 값 변경 이벤트 바인딩
+    difficultySlider.on('input', function() {
+        const level = $(this).val();
+        updateDifficultyDisplay(level);
+    });
+    
+    // 3. 게임 시작 상태로 초기화
     startNewGame(); 
     
-    document.getElementById('playerColor').addEventListener('change', startNewGame);
-    console.log("체스보드 초기화 성공.");
+    console.log("체스보드, 슬라이더, AI 로직 초기화 성공.");
 });
