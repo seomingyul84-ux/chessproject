@@ -382,7 +382,7 @@ function updateDifficultyDisplay(level) {
 
 
 // =========================================================
-// 5. 초기 실행 (ChessBoard is not defined 오류 해결 포함)
+// 5. 초기 실행 (최종 안정화된 초기화)
 // =========================================================
 
 const config = {
@@ -392,29 +392,38 @@ const config = {
     onSnapEnd: function() { 
         if (board) board.position(chess.fen());
     },
-    // 🌟🌟🌟 사용자 요청대로 '/img' 바로 아래 파일이 있음을 지정합니다. 🌟🌟🌟
-    // 이 설정은 프로젝트 루트의 /img/wP.png, /img/bK.png 파일 등을 찾습니다.
+    // 🌟🌟🌟 /img 폴더 바로 아래 파일이 있음을 지정 (사용자 요청) 🌟🌟🌟
     pieceTheme: 'img/{piece}.png' 
 };
 
-$(document).ready(function() {
-    // 1. ChessBoard 초기화
-    board = ChessBoard('myBoard', config); 
+// 🌟🌟🌟 window load 이벤트와 setTimeout을 이용한 최종 안정화 초기화 🌟🌟🌟
+window.addEventListener('load', function() {
+    console.log("LOG: window load 이벤트 발생. 250ms 후 ChessBoard 초기화 시도.");
     
-    // 2. 🌟🌟🌟 슬라이더 이벤트 바인딩 🌟🌟🌟
-    const difficultySlider = $('#difficultySlider');
-    
-    // 초기값 설정
-    updateDifficultyDisplay(difficultySlider.val());
+    // 250ms 지연 후 초기화 시도
+    setTimeout(() => {
+        try {
+            // 1. ChessBoard 초기화
+            board = ChessBoard('myBoard', config); 
+            
+            // 2. 슬라이더 이벤트 바인딩
+            const difficultySlider = $('#difficultySlider');
+            
+            updateDifficultyDisplay(difficultySlider.val());
 
-    // 값 변경 이벤트 바인딩
-    difficultySlider.on('input', function() {
-        const level = $(this).val();
-        updateDifficultyDisplay(level);
-    });
-    
-    // 3. 게임 시작 상태로 초기화
-    startNewGame(); 
-    
-    console.log("체스보드, 슬라이더, AI 로직 초기화 성공.");
+            difficultySlider.on('input', function() {
+                const level = $(this).val();
+                updateDifficultyDisplay(level);
+            });
+            
+            // 3. 게임 시작 상태로 초기화
+            startNewGame(); 
+            
+            console.log("LOG: 체스보드 및 슬라이더 초기화 성공.");
+
+        } catch (e) {
+            console.error("CRITICAL ERROR: ChessBoard 초기화 실패!", e);
+            document.getElementById('status').textContent = "⚠️ 치명적 오류: Chessboard 라이브러리 로드 실패! index.html CDN 주소를 확인하세요.";
+        }
+    }, 250); // 250 밀리초 지연
 });
