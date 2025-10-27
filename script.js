@@ -120,6 +120,91 @@ function onDrop (source, target) {
     window.setTimeout(computerMove, 250); 
 }
 
+/**
+ * AI의 오프닝 수를 강제 선택하는 함수
+ * @returns {boolean} 오프닝 수가 성공적으로 적용되었는지 여부
+ */
+function handleOpeningMove() {
+    let moveUci = null;
+    const history = chess.history({ verbose: true });
+    
+    // =================================================
+    // A. AI가 백(White)일 때 (첫 수)
+    // =================================================
+    if (chess.turn() === 'w' && history.length === 0) {
+        if (playerColor === 'b') { // AI가 백일 때만 (플레이어가 흑)
+            const rand = Math.random();
+            
+            if (rand < 0.60) { // 60% 확률로 1. e4
+                moveUci = 'e2e4';
+            } else { // 40% 확률로 1. d4
+                moveUci = 'd2d4';
+            }
+        }
+    } 
+    
+    // =================================================
+    // B. AI가 흑(Black)일 때 (상대방의 첫 수에 응수)
+    // =================================================
+    else if (chess.turn() === 'b' && history.length === 1) {
+        if (playerColor === 'w') { // AI가 흑일 때만 (플레이어가 백)
+            const playerMove = history[0].san; // 플레이어의 첫 수 (예: "e4", "d4")
+            const rand = Math.random();
+            
+            if (playerMove === 'e4') {
+                // 1. e4에 대한 흑의 응수 (총 확률 87.5%)
+                if (rand < 0.50) { // 50%
+                    moveUci = 'e7e5'; // 오픈 게임
+                } else if (rand < 0.75) { // 50% + 25% = 75%
+                    moveUci = 'c7c5'; // 시실리안
+                } else if (rand < 0.875) { // 75% + 12.5% = 87.5%
+                    // 프렌치(e6)와 카로칸(c6)을 대략 1:1로 분배하여 12.5%를 나눔
+                    moveUci = (Math.random() < 0.5) ? 'e7e6' : 'c7c6'; 
+                } else {
+                    // 나머지 12.5%는 Stockfish의 Best Move에 맡기거나, Nf6 등으로 분배 가능 (여기서는 Best Move에 맡김)
+                    // 현재 로직상 87.5%까지만 강제하고 나머지는 Best Move 로직으로 넘어감
+                    return false; 
+                }
+            } else if (playerMove === 'd4') {
+                // 1. d4에 대한 흑의 응수 (Nf6 고정)
+                moveUci = 'g8f6';
+            } else if (playerMove === 'c4') {
+                // 1. c4 (English Opening)에 대한 흑의 응수 (e5 고정)
+                moveUci = 'e7e5';
+            } else if (playerMove === 'Nf3' || playerMove === 'g3') {
+                // 1. Nf3 (Réti/Zukertort) 또는 1. g3에 대한 흑의 응수 (d5 고정)
+                moveUci = 'd7d5';
+            } else {
+                // 기타 오프닝 (Best Move 로직으로 넘어감)
+                return false; 
+            }
+        }
+    }
+    
+    // =================================================
+    // C. 선택된 오프닝 수 실행
+    // =================================================
+    if (moveUci) {
+        const moveResult = executeUciMove(moveUci);
+
+        if (moveResult) {
+            const finalMoveSan = moveResult.san; 
+            console.log(`LOG: 오프닝 강제 선택: ${finalMoveSan}`);
+            if (board) board.position(chess.fen()); 
+            document.getElementById('status').textContent = `컴퓨터가 오프닝 수(${finalMoveSan})를 두었습니다.`;
+            isEngineThinking = false;
+            updateStatus();
+            return true; // 오프닝 수 적용 성공
+        } else {
+            console.error(`LOG: 오프닝 수 (${moveUci}) 적용 실패! Best Move 로직으로 넘어갑니다.`);
+            return false; // 오프닝 수 적용 실패 시 Best Move 로직으로 넘어감
+        }
+    }
+
+    return false; // 오프닝 조건에 해당하지 않음
+}
+
+
 // 컴퓨터 수 두기 함수 (랜덤 무브, 헌납 방지 포함)
 async function computerMove() {
     if (chess.game_over() || isEngineThinking || chess.turn() === playerColor) {
@@ -127,6 +212,12 @@ async function computerMove() {
         updateStatus(); 
         return;
     }
+    
+    // 🌟🌟🌟 오프닝 강제 선택 로직 실행 🌟🌟🌟
+    if (handleOpeningMove()) {
+        return; // 오프닝 수가 성공적으로 적용되었으면 함수 종료
+    }
+    // 🌟🌟🌟 오프닝 로직 끝 🌟🌟🌟
     
     isEngineThinking = true; 
     
@@ -353,6 +444,7 @@ function startNewGame() {
     
     updateStatus();
     
+    // AI가 백일 경우 즉시 첫 수를 둠
     if (playerColor === 'b' && chess.turn() === 'w') {
         window.setTimeout(computerMove, 500); 
     }
@@ -392,11 +484,11 @@ const config = {
     onSnapEnd: function() { 
         if (board) board.position(chess.fen());
     },
-    // 🌟🌟🌟 /img 폴더 바로 아래 파일이 있음을 지정 (사용자 요청) 🌟🌟🌟
+    // /img 폴더 바로 아래 파일이 있음을 지정
     pieceTheme: 'img/{piece}.png' 
 };
 
-// 🌟🌟🌟 window load 이벤트와 setTimeout을 이용한 최종 안정화 초기화 🌟🌟🌟
+// window load 이벤트와 setTimeout을 이용한 최종 안정화 초기화
 window.addEventListener('load', function() {
     console.log("LOG: window load 이벤트 발생. 250ms 후 ChessBoard 초기화 시도.");
     
@@ -423,7 +515,7 @@ window.addEventListener('load', function() {
 
         } catch (e) {
             console.error("CRITICAL ERROR: ChessBoard 초기화 실패!", e);
-            document.getElementById('status').textContent = "⚠️ 치명적 오류: Chessboard 라이브러리 로드 실패! index.html CDN 주소를 확인하세요.";
+            document.getElementById('status').textContent = "⚠️ 치명적 오류: Chessboard 라이브러리 로드 실패! lib 폴더 내 파일을 확인하세요.";
         }
     }, 250); // 250 밀리초 지연
 });
