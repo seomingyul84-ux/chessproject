@@ -1,54 +1,63 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Stockfish AI 체스 게임</title>
-    
-    <link rel="stylesheet" href="lib/chessboard-1.0.0.min.css"> 
-    
-    <link rel="stylesheet" href="style.css?v=202510271358"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>체스 AI 게임</title>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="lib/chessboard-1.0.0.min.js"></script> 
+
+    <link rel="stylesheet" href="lib/chessboard-1.0.0.min.css"> 
+
     <script src="lib/chess.min.js"></script>
+
+    <script src="lib/chessboard-1.0.0.min.js"></script> 
     
-    <script src="lib/stockfish.min.js"></script>
-    
+    <script src="stockfish.min.js"></script> 
+
+    <link rel="stylesheet" href="style.css"> 
 </head>
 <body>
-
     <div class="container">
-        <h1>Stockfish AI 체스 게임</h1>
+        <h1>체스 AI 게임</h1>
         
         <div class="game-area">
-            <div id="myBoard" style="width: 600px"></div>
-            
+            <div id="myBoard"></div>
+
             <div class="right-panel">
                 
-                <div class="difficulty-slider-box">
-                    <label>레벨: <span id="difficultyLevel">16</span> (Depth: <span id="depthDisplay">10</span>)</label>
-                    <input type="range" id="difficultySlider" min="1" max="30" value="16">
+                <div class="control-box">
+                    <h3>게임 상태</h3>
+                    <div id="status">새 게임을 시작하세요.</div>
+                </div>
+
+                <div class="control-box" id="levelControl">
+                    <h3 id="controlBoxHeader">레벨 1</h3>
+                    <div class="slider-container">
+                        <label for="difficultySlider">난이도 설정 (1-30): <span id="difficultyLevel">1</span></label>
+                        <input type="range" min="1" max="30" value="1" class="slider" id="difficultySlider">
+                    </div>
+                    <div>
+                        <label>AI 탐색 깊이 (고정): <span id="depthDisplay">11</span></label>
+                    </div>
                 </div>
                 
-                <div class="game-controls-box">
-                    <h3 id="controlBoxHeader">레벨 16</h3>
-                    
-                    <div class="game-options">
-                        <p id="status">백 차례입니다.</p>
-                        
-                        <label for="playerColor">나의 색상 선택:</label>
-                        <select id="playerColor" onchange="startNewGame()">
+                <div class="control-box">
+                    <h3>게임 설정</h3>
+                    <div class="color-select-container">
+                        <label for="playerColor">플레이어 색상:</label>
+                        <select id="playerColor">
                             <option value="w">백 (White)</option>
                             <option value="b">흑 (Black)</option>
                         </select>
-                        
-                        <button onclick="startNewGame()">새 게임 시작</button>
                     </div>
+                    <button onclick="startNewGame()">새 게임 시작</button>
                 </div>
             </div>
         </div>
+
     </div>
 
-    <script src="script.js?v=202510271358"></script>
+    <script src="script.js"></script> 
 </body>
 </html>
