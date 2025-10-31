@@ -1,130 +1,138 @@
 body {
-    font-family: Arial, sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 100vh;
-    background-color: #333;
-    margin: 20px 0;
-    color: #f0f0f0;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    background-color: #333;
+    margin: 20px 0;
+    color: #f0f0f0;
 }
 
 .container {
-    background: #252422;
-    padding: 30px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    /* 🌟🌟🌟 수정: 최대 너비를 1200px로 크게 늘려 화면을 넓게 사용 🌟🌟🌟 */
-    max-width: 1200px; 
-    width: 90%; /* 화면 너비의 90%를 사용하도록 설정 */
-    text-align: center;
+    background: #252422;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    /* 🌟🌟🌟 수정: 최대 너비를 1200px로 크게 늘려 화면을 넓게 사용 🌟🌟🌟 */
+    max-width: 1200px; 
+    width: 90%; /* 화면 너비의 90%를 사용하도록 설정 */
+    text-align: center;
 }
 
 h1 {
-    color: #f0f0f0;
-    margin-bottom: 25px;
+    color: #f0f0f0;
+    margin-bottom: 25px;
 }
 
 .game-area {
-    display: flex;
-    /* 🌟🌟🌟 수정: 보드와 패널이 넓은 화면에서 가운데 정렬되도록 함 🌟🌟🌟 */
-    justify-content: center; 
-    gap: 40px; /* 간격을 넓힘 */
+    display: flex;
+    /* 🌟🌟🌟 수정: 보드와 패널이 넓은 화면에서 가운데 정렬되도록 함 🌟🌟🌟 */
+    justify-content: center; 
+    gap: 40px; /* 간격을 넓힘 */
 }
 
 #myBoard {
-    /* 🌟🌟🌟 수정: 보드 크기를 400px에서 600px로 확대 🌟🌟🌟 */
-    width: 600px; 
-    min-height: 600px; 
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
-    border-radius: 5px;
+    /* 🌟🌟🌟 수정: 보드 크기를 400px에서 600px로 확대 🌟🌟🌟 */
+    width: 600px; 
+    min-height: 600px; 
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
 }
 
 .right-panel {
-    display: flex;
-    flex-direction: column;
-    /* 🌟🌟🌟 수정: 패널 너비를 250px에서 300px로 확대 🌟🌟🌟 */
-    width: 300px;
-    gap: 15px;
+    display: flex;
+    flex-direction: column;
+    /* 🌟🌟🌟 수정: 패널 너비를 250px에서 300px로 확대 🌟🌟🌟 */
+    width: 300px;
+    gap: 15px;
 }
 
 /* 🌟🌟🌟 (나머지 CSS 스타일은 동일합니다) 🌟🌟🌟 */
 
 /* 슬라이더 CSS */
 .difficulty-slider-box {
-    background-color: #3f3e3c;
-    padding: 15px;
-    border-radius: 5px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    text-align: left;
-    color: #ccc;
+    background-color: #3f3e3c;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    text-align: left;
+    color: #ccc;
 }
 
 .difficulty-slider-box label {
-    display: block;
-    margin-bottom: 10px;
-    font-weight: bold;
-    color: #f0f0f0;
+    display: block;
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: #f0f0f0;
 }
 
 #difficultySlider {
-    width: 100%;
+    width: 100%;
 }
 
 /* 게임 컨트롤 박스 스타일 */
 .game-controls-box {
-    background-color: #3f3e3c; 
-    padding: 15px;
-    border-radius: 5px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    text-align: left;
-    color: #ccc;
-    /* 남은 공간을 모두 차지하도록 flex-grow 추가 */
-    flex-grow: 1; 
+    background-color: #3f3e3c; 
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    text-align: left;
+    color: #ccc;
+    /* 남은 공간을 모두 차지하도록 flex-grow 추가 */
+    flex-grow: 1; 
 }
 .game-controls-box h3 {
-    margin-top: 0;
-    color: #f0f0f0;
-    font-size: 1.1em;
-    border-bottom: 1px solid #555;
-    padding-bottom: 8px;
+    margin-top: 0;
+    color: #f0f0f0;
+    font-size: 1.1em;
+    border-bottom: 1px solid #555;
+    padding-bottom: 8px;
 }
 
 /* 기존 게임 옵션 스타일 */
 .game-options {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding-top: 15px;
-    border-top: 1px solid #555;
-    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 15px;
+    border-top: 1px solid #555;
+    margin-top: 10px;
 }
 
 .game-options select,
 .game-options button {
-    width: 100%;
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid #555;
-    box-sizing: border-box;
-    margin-top: 5px;
-    background-color: #555;
-    color: #f0f0f0;
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #555;
+    box-sizing: border-box;
+    margin-top: 5px;
+    background-color: #555;
+    color: #f0f0f0;
 }
 
 .game-options button {
-    background-color: #007bff;
-    border: none;
-    cursor: pointer;
+    background-color: #007bff;
+    border: none;
+    cursor: pointer;
 }
 
 #status {
-    font-weight: bold;
-    text-align: center;
-    padding: 10px;
-    border: 1px solid #007bff;
-    border-radius: 5px;
-    margin-bottom: 15px;
-    background-color: #1a2c3a;
-    color: #7abaff;
+    font-weight: bold;
+    text-align: center;
+    padding: 10px;
+    border: 1px solid #007bff;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    background-color: #1a2c3a;
+    color: #7abaff;
+}
+
+/* 🌟🌟🌟 [추가]: 클릭 기반 이동 시 합법적 이동 위치에 점(dot) 표시 스타일 🌟🌟🌟 */
+.highlight-dot {
+    /* 짙은 회색 점을 가운데에 표시 */
+    background-image: radial-gradient(circle, #555 15%, transparent 16%);
+    background-repeat: no-repeat;
+    background-position: center;
 }
