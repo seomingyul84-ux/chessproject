@@ -9,18 +9,51 @@ let isEngineThinking = false;
 
 // ⭐ Stockfish Worker 초기화 변수
 let stockfish = null;
-let lastMoveInfo = {}; // 엔진의 마지막 bestmove와 mate/cp 정보를 저장
+let lastMoveInfo = {}; 
 
+// ♟️ 기물 가치 정의 (CP 단위)
+const PIECE_VALUES = {
+    'p': 100, 'n': 300, 'b': 300, 
+    'r': 500, 'q': 900, 'k': 0 
+};
+
+// 🛡️ 기물 헌납 방지 임계값 (나이트/비숍 이상의 가치 손실은 블런더로 간주)
+const MATERIAL_LOSS_THRESHOLD = -300; 
+
+// 🖱️ [클릭 기능]: 클릭 기반 이동을 위한 상태 변수
+let selectedSquare = null; 
+
+/**
+ * move를 뒀을 때 기물 가치의 순손실을 계산합니다.
+ * @param {object} move - chess.js move 객체 (verbose: true)
+ * @param {object} currentChess - 현재 chess.js 객체
+ * @returns {number} 순 기물 이득 (CP)
+ */
+function getMaterialLoss(move, currentChess) {
+    const fromPiece = currentChess.get(move.from);
+    if (!fromPiece) return 0;
+    let capturedPieceValue = 0;
+    let movedPieceValue = PIECE_VALUES[fromPiece.type.toLowerCase()] || 0;
+
+    if (move.captured) {
+        capturedPieceValue = PIECE_VALUES[move.captured.toLowerCase()] || 0;
+    }
+    const netValue = capturedPieceValue - movedPieceValue;
+
+    // 기물 헌납 판단: 잡는 기물 없이 나이트/비숍 이상을 공짜로 주는 경우
+    if (!move.captured && movedPieceValue >= PIECE_VALUES['n']) {
+        return -301; 
+    }
+    
+    return netValue; 
+}
 
 // =========================================================
 // 2. Stockfish Engine (UCI) 통신 함수
 // =========================================================
 
 function initStockfish() {
-    // Stockfish.js가 로드되었는지 확인하고 Worker 초기화
     try {
-        // './lib/stockfish.min.js' 경로를 사용합니다.
-        // Worker 생성 시, Stockfish.min.js는 stockfish.wasm 파일이 같은 폴더에 있다고 가정합니다.
         stockfish = new Worker('./lib/stockfish.min.js'); 
     } catch (e) {
          document.getElementById('status').textContent = "⚠️ Stockfish 엔진 로드 실패! 파일 경로를 확인하세요.";
@@ -29,12 +62,8 @@ function initStockfish() {
     }
 
     stockfish.onmessage = handleStockfishMessage;
-    
-    // UCI 초기화 및 설정 명령
     stockfish.postMessage('uci');
     stockfish.postMessage('isready');
-    
-    // 엔진 설정 (성능 최적화)
     stockfish.postMessage('setoption name Use NNUE value true');
     stockfish.postMessage('setoption name Threads value 4'); 
 }
@@ -42,45 +71,27 @@ function initStockfish() {
 function handleStockfishMessage(event) {
     const message = event.data;
     
-    // 1. 평가 정보 (Mate/CP score) 파싱
     if (message.startsWith('info')) {
-        const depthMatch = message.match(/depth\s+(\d+)/);
         const scoreMatch = message.match(/score\s+(cp|mate)\s+([\-0-9]+)/);
-        
         if (scoreMatch) {
             lastMoveInfo.scoreType = scoreMatch[1];
-            // M1일 때 값 1, M2일 때 값 2 등으로 표시됨 (숫자 앞에 +는 제거)
             lastMoveInfo.scoreValue = parseInt(scoreMatch[2].replace('+', '')); 
-            if (depthMatch) {
-                lastMoveInfo.depth = parseInt(depthMatch[1]);
-            }
         }
     }
     
-    // 2. 최종 최적 수 (Best Move) 처리
     if (message.startsWith('bestmove')) {
         const bestMoveLan = message.split(' ')[1];
         lastMoveInfo.bestmove = bestMoveLan;
-        
         console.log(`[SF Output] Best Move: ${bestMoveLan}, Score: ${lastMoveInfo.scoreType} ${lastMoveInfo.scoreValue}`);
-        
-        // 탐색이 완료되었으므로 다음 수 실행
         executeEngineMove(); 
     }
 }
 
 function getBestMove(fen, selectedDepth) {
-    // 이전 탐색 정보 초기화
     lastMoveInfo = {
-        bestmove: null,
-        scoreType: null,
-        scoreValue: null,
-        depth: 0
+        bestmove: null, scoreType: null, scoreValue: null, depth: 0
     };
-    
     document.getElementById('status').textContent = `컴퓨터가 생각 중입니다 (Depth: ${selectedDepth})...`;
-    
-    // UCI 명령 전송
     stockfish.postMessage(`position fen ${fen}`);
     stockfish.postMessage(`go depth ${selectedDepth}`);
 }
@@ -91,14 +102,9 @@ function getBestMove(fen, selectedDepth) {
 
 function executeUciMove(uciMove) {
     if (!uciMove || uciMove.length < 4) return null;
-    
     const from = uciMove.substring(0, 2);
     const to = uciMove.substring(2, 4);
-    let promotion = undefined;
-    
-    if (uciMove.length === 5) {
-        promotion = uciMove.substring(4, 5);
-    }
+    let promotion = (uciMove.length === 5) ? uciMove.substring(4, 5) : undefined;
     
     try {
         return chess.move({ from: from, to: to, promotion: promotion });
@@ -108,35 +114,82 @@ function executeUciMove(uciMove) {
     }
 }
 
-function onDrop (source, target) {
-    if (chess.turn() !== playerColor || isEngineThinking) {
-        return 'snapback'; 
+// ----------------------------------------------------
+// 🖱️ 클릭 기반 이동 로직
+// ----------------------------------------------------
+
+function removeHighlights() {
+    $('#myBoard .square-55d63').removeClass('highlight-dot');
+}
+
+function highlightMoves(square) {
+    const moves = chess.moves({
+        square: square,
+        verbose: true
+    });
+    if (moves.length === 0) return;
+    for (let i = 0; i < moves.length; i++) {
+        $(`#myBoard .square-${moves[i].to}`).addClass('highlight-dot');
     }
-    
-    const move = chess.move({ from: source, to: target, promotion: 'q' });
-    if (move === null) return 'snapback'; 
-    
-    updateStatus();
-    // 0.25초 후 AI 차례
-    window.setTimeout(computerMove, 250); 
 }
 
 /**
- * AI의 오프닝 수를 강제 선택하는 함수 
+ * 🌟 onSquareClick: 기물 선택 및 이동 처리
  */
+function onSquareClick(square) {
+    if (chess.turn() !== playerColor || isEngineThinking) {
+        return; 
+    }
+    const piece = chess.get(square);
+
+    // 1. 이전에 기물이 선택된 상태 (이동 시도 또는 새 기물 선택)
+    if (selectedSquare) {
+        const move = chess.move({ from: selectedSquare, to: square, promotion: 'q' });
+
+        // A. 합법적인 이동 성공
+        if (move) {
+            removeHighlights();
+            selectedSquare = null;
+            board.position(chess.fen());
+            updateStatus();
+            window.setTimeout(computerMove, 250); 
+            return;
+        } 
+        
+        // B. 이동 실패 시, 자신의 다른 기물인지 확인 (선택 변경)
+        if (piece && piece.color === playerColor) {
+            removeHighlights();
+            selectedSquare = square;
+            highlightMoves(square);
+            return;
+        }
+        
+        // C. 합법적이지 않은 곳 클릭 (선택 해제)
+        removeHighlights();
+        selectedSquare = null;
+        return;
+    }
+
+    // 2. 기물이 선택되지 않은 상태 (기물 선택 시도)
+    if (piece && piece.color === playerColor) {
+        selectedSquare = square;
+        highlightMoves(square);
+    } else {
+        selectedSquare = null;
+        removeHighlights();
+    }
+}
+
 function handleOpeningMove() {
     let moveUci = null;
     const history = chess.history({ verbose: true });
     
     // 오프닝 로직: 게임 초반 2수까지는 강제 오프닝 적용
     if (history.length < 2) {
-        // AI가 백일 때 (history.length === 0)
         if (chess.turn() === 'w' && playerColor === 'b') {
             const rand = Math.random();
             moveUci = (rand < 0.60) ? 'e2e4' : 'd2d4';
-        } 
-        // AI가 흑일 때 (history.length === 1)
-        else if (chess.turn() === 'b' && playerColor === 'w' && history.length === 1) {
+        } else if (chess.turn() === 'b' && playerColor === 'w' && history.length === 1) {
             const playerMove = history[0].san; 
             const rand = Math.random();
             
@@ -157,10 +210,8 @@ function handleOpeningMove() {
     if (moveUci) {
         const moveResult = executeUciMove(moveUci);
         if (moveResult) {
-            const finalMoveSan = moveResult.san; 
-            console.log(`LOG: 오프닝 강제 선택: ${finalMoveSan}`);
             if (board) board.position(chess.fen()); 
-            document.getElementById('status').textContent = `컴퓨터가 오프닝 수(${finalMoveSan})를 두었습니다.`;
+            document.getElementById('status').textContent = `컴퓨터가 오프닝 수(${moveResult.san})를 두었습니다.`;
             isEngineThinking = false;
             updateStatus();
             return true; 
@@ -184,13 +235,11 @@ async function computerMove() {
     }
     
     isEngineThinking = true; 
-    
     const currentFen = chess.fen(); 
     
-    // 🌟 [수정]: Depth를 11로 고정
+    // 🌟 Depth 11 고정
     const selectedDepth = 11; 
 
-    // Stockfish Worker에 탐색 요청
     getBestMove(currentFen, selectedDepth);
 }
 
@@ -199,38 +248,32 @@ async function computerMove() {
  */
 function executeEngineMove() {
     isEngineThinking = true;
-    
     const bestMoveLan = lastMoveInfo.bestmove;
     let moveResult = null;
-    let finalMoveSan = null;
     
     // --- 난이도/M1 로직 설정 ---
     const difficultySlider = document.getElementById('difficultySlider');
     const selectedSkillLevel = parseInt(difficultySlider.value);
-    
     const MAX_DIFFICULTY = 30;
     const bestMoveProbability = selectedSkillLevel / MAX_DIFFICULTY;
     
-    // 🚨 M1/체크 강제 실행 조건: M1 수(mate 1)이거나 킹이 체크당한 상태
-    let forceBestMove = chess.in_check() || 
-                        (lastMoveInfo.scoreType === 'mate' && lastMoveInfo.scoreValue === 1);
+    // 🚨 M1/체크 강제 실행 조건
+    let forceBestMove = chess.in_check() || (lastMoveInfo.scoreType === 'mate' && lastMoveInfo.scoreValue === 1);
     
     // ----------------------------
     
-    if (bestMoveLan && bestMoveLan !== '(none)') { // (none)은 수가 없을 때 응답
+    if (bestMoveLan && bestMoveLan !== '(none)') { 
         
         // 🌟🌟🌟 M1 강제 및 확률 기반 실행 🌟🌟🌟
         if (forceBestMove || Math.random() < bestMoveProbability) {
             
-            // Best Move 실행
             moveResult = executeUciMove(bestMoveLan);
             
             if (moveResult) {
-                finalMoveSan = moveResult.san; 
                 if (forceBestMove) {
-                    console.log(`LOG: 👑 MATE/CHECK 강제 Best Move 선택: ${finalMoveSan}`);
+                    console.log(`LOG: 👑 MATE/CHECK 강제 Best Move 선택: ${moveResult.san}`);
                 } else {
-                    console.log(`LOG: Best Move 선택 (확률 통과): ${finalMoveSan}`);
+                    console.log(`LOG: Best Move 선택 (확률 통과): ${moveResult.san}`);
                 }
             } else {
                 console.error(`LOG: Best Move (${bestMoveLan}) 적용 실패!`);
@@ -238,38 +281,42 @@ function executeEngineMove() {
 
         } else {
             // 🎲 Random Move 선택 로직
-            
             const moves = chess.moves({ verbose: true }); 
             let randomMoves = moves.filter(m => m.lan !== bestMoveLan);
             
-            // ⚠️ 블런더 필터: 상대에게 M1을 허용하는 수는 반드시 제외
+            // ⚠️ 블런더 필터: M1 허용 방지 + 기물 헌납 방지
             const safeRandomMoves = randomMoves.filter(move => {
+                // 1. M1 허용 방지
                 const tempChess = new Chess(chess.fen());
                 tempChess.move(move.lan, { sloppy: true }); 
-                // 해당 수를 둔 후 상대방이 체크메이트를 시킬 수 있다면 위험한 수로 판단
-                return !tempChess.in_checkmate(); 
+                if (tempChess.in_checkmate()) return false; 
+                
+                // 2. 기물 헌납 방지
+                const loss = getMaterialLoss(move, chess);
+                if (loss < MATERIAL_LOSS_THRESHOLD) {
+                    return false; 
+                }
+                
+                return true; 
             });
             randomMoves = safeRandomMoves; 
             
             if (randomMoves.length > 0) {
                 const randomMove = randomMoves[Math.floor(Math.random() * randomMoves.length)];
-                // UCI 형식으로 변환
                 const randomMoveUci = randomMove.from + randomMove.to + (randomMove.promotion || '');
                 
                 moveResult = executeUciMove(randomMoveUci); 
                 
                 if (moveResult) {
-                    finalMoveSan = moveResult.san; 
-                    console.log(`LOG: Random Move 선택 (확률 불만족): ${finalMoveSan}`);
+                    console.log(`LOG: Random Move 선택 (확률 불만족): ${moveResult.san}`);
                 } else {
                     console.error(`LOG: Random Move (${randomMoveUci}) 적용 실패!`); 
                 }
 
             } else {
-                // 안전한 Random Move가 없으면 최선수인 Best Move로 강제 회귀
+                // 안전한 Random Move가 없으면 Best Move로 강제 회귀
                 moveResult = executeUciMove(bestMoveLan);
                 if (moveResult) {
-                    finalMoveSan = moveResult.san; 
                     console.warn("LOG: 안전한 Random Move가 없어 Best Move로 강제 회귀.");
                 } else {
                     console.error(`LOG: Best Move (${bestMoveLan}) 회귀 적용 실패!`);
@@ -280,7 +327,7 @@ function executeEngineMove() {
         // 최종 적용 결과를 보드에 반영
         if (moveResult) {
              if (board) board.position(chess.fen()); 
-             document.getElementById('status').textContent = `컴퓨터가 ${finalMoveSan} 수를 두었습니다.`;
+             document.getElementById('status').textContent = `컴퓨터가 ${moveResult.san} 수를 두었습니다.`;
         } else {
              document.getElementById('status').textContent = `⚠️ 오류: 수를 보드에 적용할 수 없습니다.`;
         }
@@ -290,10 +337,7 @@ function executeEngineMove() {
     } 
     
     isEngineThinking = false; 
-    
-    if (moveResult) {
-        updateStatus();
-    }
+    if (moveResult) updateStatus();
 }
 
 
@@ -307,6 +351,10 @@ function startNewGame() {
     chess.reset(); 
     if (board) board.position('start'); 
     
+    // 🖱️ [클릭 기능]: 새 게임 시 선택 상태 초기화 및 점 제거
+    selectedSquare = null; 
+    removeHighlights(); 
+    
     if (playerColor === 'b') {
         if (board) board.orientation('black');
     } else {
@@ -315,7 +363,6 @@ function startNewGame() {
     
     updateStatus();
     
-    // AI가 백일 경우 즉시 첫 수를 둠
     if (playerColor === 'b' && chess.turn() === 'w') {
         window.setTimeout(computerMove, 500); 
     }
@@ -333,12 +380,10 @@ function updateStatus() {
     document.getElementById('status').textContent = status;
 }
 
-// 🌟🌟🌟 슬라이더 값 변경 시 UI 업데이트 함수 (Depth 11 고정) 🌟🌟🌟
 function updateDifficultyDisplay(level) {
     const FIXED_DEPTH = 11;
-    
     $('#difficultyLevel').text(level);
-    $('#depthDisplay').text(FIXED_DEPTH); // Depth 11 고정 표시
+    $('#depthDisplay').text(FIXED_DEPTH); 
     $('#controlBoxHeader').text(`레벨 ${level}`);
 }
 
@@ -347,38 +392,32 @@ function updateDifficultyDisplay(level) {
 // 5. 초기 실행
 // =========================================================
 
+// 🌟 [핵심 변경]: onDrop 대신 onSquareClick 사용
 const config = {
-    draggable: true,
+    draggable: false, 
     position: 'start',
-    onDrop: onDrop,
-    onSnapEnd: function() { 
-        if (board) board.position(chess.fen());
-    },
+    onSquareClick: onSquareClick, // 클릭 기반 이동 등록
     pieceTheme: 'img/{piece}.png' 
 };
 
 window.addEventListener('load', function() {
-    
-    // 1. Stockfish 엔진 초기화
     initStockfish();
 
     setTimeout(() => {
         try {
-            // 2. ChessBoard 초기화
             board = ChessBoard('myBoard', config); 
             
-            // 3. 슬라이더 이벤트 바인딩
             const difficultySlider = $('#difficultySlider');
-            
             updateDifficultyDisplay(difficultySlider.val());
-
             difficultySlider.on('input', function() {
                 const level = $(this).val();
                 updateDifficultyDisplay(level);
             });
             
-            // 4. 게임 시작 상태로 초기화
             startNewGame(); 
+            
+            // 🎨 점(dot) 표시를 위한 CSS 스타일 추가
+            $('head').append('<style>.highlight-dot { background-image: radial-gradient(circle, #555 15%, transparent 16%); }</style>');
 
         } catch (e) {
             console.error("CRITICAL ERROR: 초기화 실패!", e);
