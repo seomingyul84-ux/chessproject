@@ -1,12 +1,14 @@
 // =========================================================
-// 1. 상수 및 초기화 (생략 - 이전과 동일)
+// 1. 상수 및 초기화
 // =========================================================
+
 const chess = new Chess();
 let board = null; 
 let playerColor = 'w'; 
 let isEngineThinking = false; 
 let stockfish = null;
 let lastMoveInfo = {}; 
+
 const PIECE_VALUES = {'p': 100, 'n': 300, 'b': 300, 'r': 500, 'q': 900, 'k': 0 };
 const MATERIAL_LOSS_THRESHOLD = -300; 
 let selectedSquare = null; 
@@ -28,12 +30,11 @@ function getMaterialLoss(move, currentChess) {
 
 
 // =========================================================
-// 2. Stockfish Engine (UCI) 통신 함수 (생략 - 이전과 동일)
+// 2. Stockfish Engine (UCI) 통신 함수
 // =========================================================
 
 function initStockfish() {
     try {
-        // 경로 수정 유지: './lib/' 제거 
         stockfish = new Worker('./stockfish.min.js'); 
     } catch (e) {
          document.getElementById('status').textContent = "⚠️ Stockfish 엔진 로드 실패! 파일 경로를 확인하세요.";
@@ -92,20 +93,18 @@ function executeUciMove(uciMove) {
 // 🖱️ 클릭 기반 이동 로직
 function removeHighlights() {
     $('#myBoard .square-55d63').removeClass('highlight-dot');
-    console.log('[Highlight] All highlights removed.'); // 디버깅
+    console.log('[Highlight] All highlights removed.'); 
 }
 
 function highlightMoves(square) {
     const moves = chess.moves({ square: square, verbose: true });
     
-    // 🌟 디버깅: 이동 가능한 수 확인 🌟
     console.log(`[Highlight] Found ${moves.length} moves from ${square}.`); 
 
     if (moves.length === 0) return;
     
     for (let i = 0; i < moves.length; i++) {
         const targetSquareClass = `.square-${moves[i].to}`;
-        // 🌟 디버깅: 클래스 추가 시도 확인 🌟
         $(`#myBoard ${targetSquareClass}`).addClass('highlight-dot');
         console.log(`[Highlight] Attempting to add dot to ${moves[i].to} via selector: ${targetSquareClass}`);
     }
@@ -164,17 +163,20 @@ function onSquareClick(square) {
 }
 
 /**
- * AI의 오프닝 수를 강제 선택하는 함수 (생략 - 이전과 동일)
+ * AI의 오프닝 수를 강제 선택하는 함수
  */
 function handleOpeningMove() {
     let moveUci = null;
     const history = chess.history({ verbose: true });
     
     if (history.length < 2) {
+        // AI가 백일 때 (history.length === 0)
         if (chess.turn() === 'w' && playerColor === 'b') {
             const rand = Math.random();
             moveUci = (rand < 0.60) ? 'e2e4' : 'd2d4';
-        } else if (chess.turn() === 'b' && playerColor === 'w' && history.length === 1) {
+        } 
+        // AI가 흑일 때 (history.length === 1)
+        else if (chess.turn() === 'b' && playerColor === 'w' && history.length === 1) {
             const playerMove = history[0].san; 
             const rand = Math.random();
             
@@ -183,8 +185,12 @@ function handleOpeningMove() {
                 else if (rand < 0.75) { moveUci = 'c7c5'; } 
                 else { moveUci = (Math.random() < 0.5) ? 'e7e6' : 'c7c6'; } 
             } else if (playerMove === 'd4') {
-                if (rand < 0.50) { moveUci = 'd7d5'; } 
-                else { moveUci = 'g8f6'; }
+                // 수정된 로직: d4에 대해 50% d7d5, 50% g8f6
+                if (rand < 0.50) {
+                    moveUci = 'd7d5'; 
+                } else {
+                    moveUci = 'g8f6';
+                }
             } else if (playerMove === 'c4') {
                 moveUci = 'e7e5';
             } else if (playerMove === 'Nf3' || playerMove === 'g3') {
@@ -266,7 +272,7 @@ function executeEngineMove() {
                 const randomMoveUci = randomMove.from + randomMove.to + (randomMove.promotion || '');
                 moveResult = executeUciMove(randomMoveUci); 
                 if (moveResult) {
-                    console.log(`LOG: Random Move 선택: ${moveResult.san}`);
+                    console.log(`LOG: Random Move 선택: ${randomMove.san}`);
                 } else {
                     console.error(`LOG: Random Move (${randomMoveUci}) 적용 실패!`); 
                 }
@@ -294,7 +300,7 @@ function executeEngineMove() {
 
 
 // =========================================================
-// 4. 난이도 및 보드 초기화 로직 (생략 - 이전과 동일)
+// 4. 난이도 및 보드 초기화 로직
 // =========================================================
 
 function startNewGame() {
@@ -338,7 +344,7 @@ function updateDifficultyDisplay(level) {
 
 
 // =========================================================
-// 5. 초기 실행
+// 5. 초기 실행 (클릭 이벤트 강제 바인딩 추가)
 // =========================================================
 
 const config = {
@@ -364,8 +370,17 @@ window.addEventListener('load', function() {
             
             startNewGame(); 
             
-            // 🌟🌟🌟 style.css에 스타일이 이미 있다면 이 부분을 주석 처리하고 확인해보세요. 🌟🌟🌟
-            // $('head').append('<style>.highlight-dot { background-image: radial-gradient(circle, #555 15%, transparent 16%); }</style>');
+            // 🌟🌟🌟 클릭 이벤트 강제 바인딩 (onSquareClick 버그 우회) 🌟🌟🌟
+            // ChessBoard.js의 'square-55d63' 클래스에 직접 jQuery 이벤트를 걸어준다.
+            $('#myBoard').on('click', '.square-55d63', function() {
+                const square = $(this).attr('data-square');
+                if (square) {
+                    // 기존 onSquareClick 함수를 호출
+                    onSquareClick(square);
+                }
+            });
+            // 🌟🌟🌟 강제 바인딩 코드 끝 🌟🌟🌟
+
 
         } catch (e) {
             console.error("CRITICAL ERROR: 초기화 실패!", e);
