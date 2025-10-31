@@ -89,26 +89,44 @@ function executeUciMove(uciMove) {
     }
 }
 
-// 🖱️ 클릭 기반 이동 로직 (생략 - 이전과 동일)
+// 🖱️ 클릭 기반 이동 로직
 function removeHighlights() {
     $('#myBoard .square-55d63').removeClass('highlight-dot');
+    console.log('[Highlight] All highlights removed.'); // 디버깅
 }
 
 function highlightMoves(square) {
     const moves = chess.moves({ square: square, verbose: true });
+    
+    // 🌟 디버깅: 이동 가능한 수 확인 🌟
+    console.log(`[Highlight] Found ${moves.length} moves from ${square}.`); 
+
     if (moves.length === 0) return;
+    
     for (let i = 0; i < moves.length; i++) {
-        $(`#myBoard .square-${moves[i].to}`).addClass('highlight-dot');
+        const targetSquareClass = `.square-${moves[i].to}`;
+        // 🌟 디버깅: 클래스 추가 시도 확인 🌟
+        $(`#myBoard ${targetSquareClass}`).addClass('highlight-dot');
+        console.log(`[Highlight] Attempting to add dot to ${moves[i].to} via selector: ${targetSquareClass}`);
     }
 }
 
 function onSquareClick(square) {
-    if (chess.turn() !== playerColor || isEngineThinking) return; 
+    // 🌟 디버깅: 함수 호출 확인 🌟
+    console.log(`[Click] Square clicked: ${square}`); 
+
+    if (chess.turn() !== playerColor || isEngineThinking) {
+        console.log(`[Click] Not Player's turn or Engine thinking. Returning.`); 
+        return; 
+    }
     const piece = chess.get(square);
 
     if (selectedSquare) {
+        // 1. 이동 시도
         const move = chess.move({ from: selectedSquare, to: square, promotion: 'q' });
+        
         if (move) {
+            console.log(`[Click] Valid move: ${move.san}`);
             removeHighlights();
             selectedSquare = null;
             board.position(chess.fen());
@@ -116,40 +134,47 @@ function onSquareClick(square) {
             window.setTimeout(computerMove, 250); 
             return;
         } 
+        
+        // 2. 다른 기물 선택 시도
         if (piece && piece.color === playerColor) {
+            console.log(`[Click] Selection changed from ${selectedSquare} to ${square}.`);
             removeHighlights();
             selectedSquare = square;
             highlightMoves(square);
             return;
         }
+        
+        // 3. 무효한 이동 후 클릭 (선택 해제)
+        console.log(`[Click] Invalid move or square. Deselecting.`);
         removeHighlights();
         selectedSquare = null;
         return;
     }
+    
+    // 4. 기물 선택 시도
     if (piece && piece.color === playerColor) {
+        console.log(`[Click] Piece selected: ${square}`);
         selectedSquare = square;
         highlightMoves(square);
     } else {
+        console.log(`[Click] Empty or opponent square clicked. Deselecting/No selection.`);
         selectedSquare = null;
         removeHighlights();
     }
 }
 
 /**
- * AI의 오프닝 수를 강제 선택하는 함수
+ * AI의 오프닝 수를 강제 선택하는 함수 (생략 - 이전과 동일)
  */
 function handleOpeningMove() {
     let moveUci = null;
     const history = chess.history({ verbose: true });
     
     if (history.length < 2) {
-        // AI가 백일 때 (history.length === 0)
         if (chess.turn() === 'w' && playerColor === 'b') {
             const rand = Math.random();
             moveUci = (rand < 0.60) ? 'e2e4' : 'd2d4';
-        } 
-        // AI가 흑일 때 (history.length === 1)
-        else if (chess.turn() === 'b' && playerColor === 'w' && history.length === 1) {
+        } else if (chess.turn() === 'b' && playerColor === 'w' && history.length === 1) {
             const playerMove = history[0].san; 
             const rand = Math.random();
             
@@ -158,12 +183,8 @@ function handleOpeningMove() {
                 else if (rand < 0.75) { moveUci = 'c7c5'; } 
                 else { moveUci = (Math.random() < 0.5) ? 'e7e6' : 'c7c6'; } 
             } else if (playerMove === 'd4') {
-                // 🌟🌟🌟 수정된 로직: d4에 대해 50% d7d5, 50% g8f6 🌟🌟🌟
-                if (rand < 0.50) {
-                    moveUci = 'd7d5'; 
-                } else {
-                    moveUci = 'g8f6';
-                }
+                if (rand < 0.50) { moveUci = 'd7d5'; } 
+                else { moveUci = 'g8f6'; }
             } else if (playerMove === 'c4') {
                 moveUci = 'e7e5';
             } else if (playerMove === 'Nf3' || playerMove === 'g3') {
@@ -317,7 +338,7 @@ function updateDifficultyDisplay(level) {
 
 
 // =========================================================
-// 5. 초기 실행 (생략 - 이전과 동일)
+// 5. 초기 실행
 // =========================================================
 
 const config = {
@@ -343,7 +364,8 @@ window.addEventListener('load', function() {
             
             startNewGame(); 
             
-            $('head').append('<style>.highlight-dot { background-image: radial-gradient(circle, #555 15%, transparent 16%); }</style>');
+            // 🌟🌟🌟 style.css에 스타일이 이미 있다면 이 부분을 주석 처리하고 확인해보세요. 🌟🌟🌟
+            // $('head').append('<style>.highlight-dot { background-image: radial-gradient(circle, #555 15%, transparent 16%); }</style>');
 
         } catch (e) {
             console.error("CRITICAL ERROR: 초기화 실패!", e);
