@@ -1,5 +1,5 @@
 // =========================================================
-// 1. 상수 및 초기화
+// 1. 상수 및 초기화 (변동 없음)
 // =========================================================
 
 const chess = new Chess();
@@ -30,7 +30,7 @@ function getMaterialLoss(move, currentChess) {
 
 
 // =========================================================
-// 2. Stockfish Engine (UCI) 통신 함수
+// 2. Stockfish Engine (UCI) 통신 함수 (변동 없음)
 // =========================================================
 
 function initStockfish() {
@@ -111,7 +111,6 @@ function highlightMoves(square) {
 }
 
 function onSquareClick(square) {
-    // 🌟 디버깅: 함수 호출 확인 🌟
     console.log(`[Click] Square clicked: ${square}`); 
 
     if (chess.turn() !== playerColor || isEngineThinking) {
@@ -126,6 +125,18 @@ function onSquareClick(square) {
         
         if (move) {
             console.log(`[Click] Valid move: ${move.san}`);
+            
+            // 🌟🌟🌟 핵심 수정: 플레이어의 첫 수가 두어지면 슬라이더 비활성화 🌟🌟🌟
+            // 백(w)으로 플레이: history.length가 1 (백의 첫 수)
+            if (playerColor === 'w' && chess.history().length === 1) {
+                setDifficultySliderState(false);
+            }
+            // 흑(b)으로 플레이: history.length가 2 (컴퓨터의 첫 수 + 흑의 첫 수)
+            if (playerColor === 'b' && chess.history().length === 2 && move.color === 'b') {
+                setDifficultySliderState(false);
+            }
+            // 🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟
+            
             removeHighlights();
             selectedSquare = null;
             board.position(chess.fen());
@@ -162,40 +173,41 @@ function onSquareClick(square) {
     }
 }
 
-/**
- * AI의 오프닝 수를 강제 선택하는 함수
- */
 function handleOpeningMove() {
     let moveUci = null;
     const history = chess.history({ verbose: true });
     
-    if (history.length < 2) {
-        // AI가 백일 때 (history.length === 0)
-        if (chess.turn() === 'w' && playerColor === 'b') {
-            const rand = Math.random();
-            moveUci = (rand < 0.60) ? 'e2e4' : 'd2d4';
-        } 
-        // AI가 흑일 때 (history.length === 1)
-        else if (chess.turn() === 'b' && playerColor === 'w' && history.length === 1) {
-            const playerMove = history[0].san; 
-            const rand = Math.random();
-            
-            if (playerMove === 'e4') {
-                if (rand < 0.50) { moveUci = 'e7e5'; } 
-                else if (rand < 0.75) { moveUci = 'c7c5'; } 
-                else { moveUci = (Math.random() < 0.5) ? 'e7e6' : 'c7c6'; } 
-            } else if (playerMove === 'd4') {
-                // 수정된 로직: d4에 대해 50% d7d5, 50% g8f6
-                if (rand < 0.50) {
-                    moveUci = 'd7d5'; 
-                } else {
-                    moveUci = 'g8f6';
-                }
-            } else if (playerMove === 'c4') {
-                moveUci = 'e7e5';
-            } else if (playerMove === 'Nf3' || playerMove === 'g3') {
-                moveUci = 'd7d5';
-            }
+    // AI가 백(w)일 때 (흑 플레이어의 경우)
+    if (chess.turn() === 'w' && playerColor === 'b' && history.length === 0) {
+        const rand = Math.random();
+        moveUci = (rand < 0.60) ? 'e2e4' : 'd2d4';
+        
+        // 🌟 흑 플레이 시, 컴퓨터의 첫 수가 두어지면 난이도 잠금
+        if (moveUci) {
+            setDifficultySliderState(false);
+        }
+    } 
+    // AI가 흑(b)일 때 (백 플레이어의 경우)
+    else if (chess.turn() === 'b' && playerColor === 'w' && history.length === 1) {
+        const playerMove = history[0].san; 
+        const rand = Math.random();
+        
+        if (playerMove === 'e4') {
+            if (rand < 0.50) { moveUci = 'e7e5'; } 
+            else if (rand < 0.75) { moveUci = 'c7c5'; } 
+            else { moveUci = (Math.random() < 0.5) ? 'e7e6' : 'c7c6'; } 
+        } else if (playerMove === 'd4') {
+            if (rand < 0.50) { moveUci = 'd7d5'; } 
+            else { moveUci = 'g8f6'; }
+        } else if (playerMove === 'c4') {
+            moveUci = 'e7e5';
+        } else if (playerMove === 'Nf3' || playerMove === 'g3') {
+            moveUci = 'd7d5';
+        }
+        
+        // 🌟 백 플레이 시, 컴퓨터의 응수가 두어지면 난이도 잠금
+        if (moveUci) {
+            setDifficultySliderState(false);
         }
     }
     
@@ -303,6 +315,22 @@ function executeEngineMove() {
 // 4. 난이도 및 보드 초기화 로직
 // =========================================================
 
+function setDifficultySliderState(isEnabled) {
+    const slider = document.getElementById('difficultySlider');
+    const levelControlBox = document.getElementById('levelControl');
+    if (isEnabled) {
+        slider.disabled = false;
+        levelControlBox.style.opacity = 1.0;
+        levelControlBox.title = "";
+        console.log('[UI Control] Difficulty slider enabled.');
+    } else {
+        slider.disabled = true;
+        levelControlBox.style.opacity = 0.6; // 시각적으로 비활성화 표시
+        levelControlBox.title = "게임이 진행 중이므로 난이도 변경이 불가능합니다.";
+        console.log('[UI Control] Difficulty slider disabled.');
+    }
+}
+
 function startNewGame() {
     const colorSelect = document.getElementById('playerColor');
     playerColor = colorSelect.value;
@@ -311,6 +339,9 @@ function startNewGame() {
     selectedSquare = null; 
     removeHighlights(); 
     
+    // 🌟 수정: 새 게임 시작 시 슬라이더를 일단 활성화 상태로 둡니다.
+    setDifficultySliderState(true); 
+    
     if (playerColor === 'b') {
         if (board) board.orientation('black');
     } else {
@@ -318,6 +349,7 @@ function startNewGame() {
     }
     updateStatus();
     
+    // 흑으로 플레이할 때 컴퓨터(백)가 첫 수를 둡니다.
     if (playerColor === 'b' && chess.turn() === 'w') {
         window.setTimeout(computerMove, 500); 
     }
@@ -327,8 +359,10 @@ function updateStatus() {
     let status = '';
     if (chess.in_checkmate()) {
         status = `체크메이트! ${chess.turn() === 'w' ? '흑' : '백'} 승리`;
+        setDifficultySliderState(true); // 🌟 게임 종료 시 슬라이더 활성화
     } else if (chess.in_draw()) {
         status = '무승부!';
+        setDifficultySliderState(true); // 🌟 게임 종료 시 슬라이더 활성화
     } else {
         status = `${chess.turn() === 'w' ? '백' : '흑'} 차례입니다.`;
     }
@@ -344,7 +378,7 @@ function updateDifficultyDisplay(level) {
 
 
 // =========================================================
-// 5. 초기 실행 (클릭 이벤트 강제 바인딩 추가)
+// 5. 초기 실행 (클릭 이벤트 강제 바인딩 포함)
 // =========================================================
 
 const config = {
@@ -368,19 +402,18 @@ window.addEventListener('load', function() {
                 updateDifficultyDisplay(level);
             });
             
+            // 초기 로드 시 난이도 변경이 가능하도록 활성화
+            setDifficultySliderState(true); 
+
             startNewGame(); 
             
-            // 🌟🌟🌟 클릭 이벤트 강제 바인딩 (onSquareClick 버그 우회) 🌟🌟🌟
-            // ChessBoard.js의 'square-55d63' 클래스에 직접 jQuery 이벤트를 걸어준다.
+            // 클릭 이벤트 강제 바인딩 (onSquareClick 버그 우회)
             $('#myBoard').on('click', '.square-55d63', function() {
                 const square = $(this).attr('data-square');
                 if (square) {
-                    // 기존 onSquareClick 함수를 호출
                     onSquareClick(square);
                 }
             });
-            // 🌟🌟🌟 강제 바인딩 코드 끝 🌟🌟🌟
-
 
         } catch (e) {
             console.error("CRITICAL ERROR: 초기화 실패!", e);
