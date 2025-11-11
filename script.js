@@ -1,5 +1,5 @@
 // =========================================================
-// 1. 상수 및 초기화 (변동 없음)
+// 1. 상수 및 초기화 
 // =========================================================
 
 const chess = new Chess();
@@ -12,6 +12,9 @@ let lastMoveInfo = {};
 const PIECE_VALUES = {'p': 100, 'n': 300, 'b': 300, 'r': 500, 'q': 900, 'k': 0 };
 const MATERIAL_LOSS_THRESHOLD = -300; 
 let selectedSquare = null; 
+
+// 경고 메시지를 저장할 변수
+let originalStatusText = '';
 
 function getMaterialLoss(move, currentChess) {
     const fromPiece = currentChess.get(move.from);
@@ -30,7 +33,7 @@ function getMaterialLoss(move, currentChess) {
 
 
 // =========================================================
-// 2. Stockfish Engine (UCI) 통신 함수 (변동 없음)
+// 2. Stockfish Engine (UCI) 통신 함수 
 // =========================================================
 
 function initStockfish() {
@@ -92,7 +95,7 @@ function executeUciMove(uciMove) {
 
 // 🖱️ 클릭 기반 이동 로직
 function removeHighlights() {
-    $('#myBoard .square-55d63').removeClass('highlight-dot');
+    $('#myBoard .square-55d63').removeClass('highlight-dot highlight-capture'); 
     console.log('[Highlight] All highlights removed.'); 
 }
 
@@ -104,11 +107,36 @@ function highlightMoves(square) {
     if (moves.length === 0) return;
     
     for (let i = 0; i < moves.length; i++) {
-        const targetSquareClass = `.square-${moves[i].to}`;
-        $(`#myBoard ${targetSquareClass}`).addClass('highlight-dot');
-        console.log(`[Highlight] Attempting to add dot to ${moves[i].to} via selector: ${targetSquareClass}`);
+        const targetSquare = moves[i].to;
+        const targetSquareClass = `.square-${targetSquare}`;
+        
+        if (moves[i].captured) { 
+            $(`#myBoard ${targetSquareClass}`).addClass('highlight-capture');
+            console.log(`[Highlight] Attempting to add capture highlight to ${targetSquare} via selector: ${targetSquareClass}`);
+        } else {
+            $(`#myBoard ${targetSquareClass}`).addClass('highlight-dot');
+            console.log(`[Highlight] Attempting to add dot to ${targetSquare} via selector: ${targetSquareClass}`);
+        }
     }
 }
+
+// 🚨 경고 메시지를 잠깐 보여주는 함수
+function showTemporaryWarning(message) {
+    const statusElement = document.getElementById('status');
+    originalStatusText = statusElement.textContent; // 현재 상태 저장
+
+    statusElement.textContent = message; // 경고 메시지 표시
+    statusElement.style.color = '#ff4747'; // 경고 색상 (빨간색)
+
+    // 2초 후에 원래 상태로 복구
+    setTimeout(() => {
+        // 복구 시점에 현재 상태가 경고 메시지가 아니면 복구하지 않음 (다른 업데이트가 있을 수 있음)
+        if (statusElement.textContent === message) {
+            updateStatus(true); 
+        }
+    }, 2000);
+}
+
 
 function onSquareClick(square) {
     console.log(`[Click] Square clicked: ${square}`); 
@@ -126,16 +154,13 @@ function onSquareClick(square) {
         if (move) {
             console.log(`[Click] Valid move: ${move.san}`);
             
-            // 🌟🌟🌟 핵심 수정: 플레이어의 첫 수가 두어지면 슬라이더 비활성화 🌟🌟🌟
-            // 백(w)으로 플레이: history.length가 1 (백의 첫 수)
+            // 난이도 슬라이더 비활성화 로직 (플레이어의 첫 수가 두어지면)
             if (playerColor === 'w' && chess.history().length === 1) {
                 setDifficultySliderState(false);
             }
-            // 흑(b)으로 플레이: history.length가 2 (컴퓨터의 첫 수 + 흑의 첫 수)
             if (playerColor === 'b' && chess.history().length === 2 && move.color === 'b') {
                 setDifficultySliderState(false);
             }
-            // 🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟
             
             removeHighlights();
             selectedSquare = null;
@@ -144,6 +169,13 @@ function onSquareClick(square) {
             window.setTimeout(computerMove, 250); 
             return;
         } 
+        
+        // 이동 실패 시 경고 시스템
+        if (chess.in_check()) {
+            showTemporaryWarning(`🚫 체크 상태입니다! 킹을 안전하게 이동시키거나 체크를 막는 수를 두세요.`);
+        } else {
+            showTemporaryWarning(`⚠️ 유효하지 않은 이동입니다.`);
+        }
         
         // 2. 다른 기물 선택 시도
         if (piece && piece.color === playerColor) {
@@ -182,7 +214,7 @@ function handleOpeningMove() {
         const rand = Math.random();
         moveUci = (rand < 0.60) ? 'e2e4' : 'd2d4';
         
-        // 🌟 흑 플레이 시, 컴퓨터의 첫 수가 두어지면 난이도 잠금
+        // 흑 플레이 시, 컴퓨터의 첫 수가 두어지면 난이도 잠금
         if (moveUci) {
             setDifficultySliderState(false);
         }
@@ -205,7 +237,7 @@ function handleOpeningMove() {
             moveUci = 'd7d5';
         }
         
-        // 🌟 백 플레이 시, 컴퓨터의 응수가 두어지면 난이도 잠금
+        // 백 플레이 시, 컴퓨터의 응수가 두어지면 난이도 잠금
         if (moveUci) {
             setDifficultySliderState(false);
         }
@@ -339,7 +371,7 @@ function startNewGame() {
     selectedSquare = null; 
     removeHighlights(); 
     
-    // 🌟 수정: 새 게임 시작 시 슬라이더를 일단 활성화 상태로 둡니다.
+    // 새 게임 시작 시 슬라이더를 일단 활성화 상태로 둡니다. (첫 수 두기 전까지 변경 가능)
     setDifficultySliderState(true); 
     
     if (playerColor === 'b') {
@@ -355,19 +387,43 @@ function startNewGame() {
     }
 }
 
-function updateStatus() {
+function updateStatus(isRestoring = false) {
+    if (isRestoring === true) {
+        // 경고 메시지 복구 시, originalStatusText의 내용을 status에 적용
+        document.getElementById('status').textContent = originalStatusText;
+    }
+
     let status = '';
+    const statusElement = document.getElementById('status');
+    let color = '#f0f0f0'; // 기본색
+
     if (chess.in_checkmate()) {
         status = `체크메이트! ${chess.turn() === 'w' ? '흑' : '백'} 승리`;
-        setDifficultySliderState(true); // 🌟 게임 종료 시 슬라이더 활성화
+        setDifficultySliderState(true);
+        color = '#ff6347'; // 게임 오버 시 빨간색
     } else if (chess.in_draw()) {
         status = '무승부!';
-        setDifficultySliderState(true); // 🌟 게임 종료 시 슬라이더 활성화
+        setDifficultySliderState(true);
+        color = '#ffd700'; // 무승부 시 노란색
+    } else if (chess.in_check()) {
+        status = `${chess.turn() === 'w' ? '백' : '흑'} 차례입니다. (체크 상태!)`;
+        color = '#ff6347'; // 체크 상태일 때 빨간색 경고
     } else {
         status = `${chess.turn() === 'w' ? '백' : '흑'} 차례입니다.`;
+        color = '#f0f0f0'; // 일반 상태일 때 기본색
     }
-    document.getElementById('status').textContent = status;
+    
+    // 경고 메시지가 아니라면 상태와 색상 업데이트
+    if (!isRestoring) {
+        statusElement.textContent = status;
+        statusElement.style.color = color;
+        originalStatusText = status; // 원래 상태 저장
+    } else {
+         // 복원 시에는 텍스트는 originalStatusText로 이미 복구되었으므로 색상만 복구
+         statusElement.style.color = color;
+    }
 }
+
 
 function updateDifficultyDisplay(level) {
     const FIXED_DEPTH = 11;
@@ -378,7 +434,7 @@ function updateDifficultyDisplay(level) {
 
 
 // =========================================================
-// 5. 초기 실행 (클릭 이벤트 강제 바인딩 포함)
+// 5. 초기 실행 
 // =========================================================
 
 const config = {
