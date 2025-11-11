@@ -2,13 +2,12 @@ body {
     font-family: Arial, sans-serif;
     display: flex;
     justify-content: center;
-    /* 🌟 UI를 화면의 수직 중앙에 배치 */
+    /* UI를 화면의 수직 중앙에 배치 */
     align-items: center; 
     min-height: 100vh;
     background-color: #333;
     margin: 0; 
     color: #f0f0f0;
-    /* 스크롤바가 필요할 경우를 대비하여 overflow-y: auto; */
     overflow-y: auto; 
 }
 
@@ -70,7 +69,7 @@ h1 {
 #status {
     font-size: 1.1em;
     font-weight: bold;
-    color: #ff6347; 
+    /* 색상은 script.js에서 상태(체크, 게임오버 등)에 따라 동적으로 설정됩니다. */
     margin-bottom: 15px;
     text-align: center;
 }
@@ -131,12 +130,19 @@ h1 {
     color: #f0f0f0;
 }
 
-/* 🌟🌟🌟 기물 이동 하이라이트 (점 표시 문제 최종 해결) 🌟🌟🌟 */
+/* 🌟 기물 이동 하이라이트 */
 .highlight-dot {
     /* !!! CSS 우선순위 확보를 위해 !important 추가 !!! */
     background-image: radial-gradient(circle, #555 15%, transparent 16%) !important; 
     background-repeat: no-repeat !important;
     background-position: center !important;
+}
+
+/* 🌟 기물 잡기 하이라이트 */
+.highlight-capture {
+    /* 기존 highlight-dot 위에 적용되도록 border만 추가 */
+    box-shadow: inset 0 0 0 4px #ff0000 !important; /* 빨간색 테두리 */
+    border-radius: 50% !important; /* 원형 테두리 (선택 사항) */
 }
 
 /* 모바일 반응형 디자인 */
