@@ -38,7 +38,7 @@ h1 {
 
 /* 🌟🌟🌟 수정된 부분: 체스보드 크기 600px -> 700px로 증가 🌟🌟🌟 */
 #myBoard {
-    width: 850px; 
+    width: 770px; 
     min-height: 700px; 
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
     border-radius: 5px;
