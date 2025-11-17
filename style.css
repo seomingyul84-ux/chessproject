@@ -16,7 +16,8 @@ body {
     padding: 30px;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    max-width: 1300px; /* 전체 컨테이너 최대 너비 증가 */
+    /* 체스보드가 700px로 커져서 전체 컨테이너 최대 너비도 증가 */
+    max-width: 1300px; 
     width: 90%; 
     text-align: center;
     /* 중앙 정렬 시 상하 여백 제공 */
@@ -36,14 +37,13 @@ h1 {
     flex-wrap: wrap; 
 }
 
-/* 🌟🌟🌟 수정된 부분: 체스보드 크기 600px -> 700px로 증가 🌟🌟🌟 */
+/* 🌟 체스보드 크기: 700px로 설정 */
 #myBoard {
-    width: 770px; 
+    width: 700px; 
     min-height: 700px; 
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
     border-radius: 5px;
 }
-/* 🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟 */
 
 .right-panel {
     display: flex;
@@ -101,21 +101,37 @@ h1 {
     opacity: 1;
 }
 
-/* 버튼 스타일 */
+/* 게임 컨트롤 박스 내 버튼들을 위한 flex 컨테이너 (홈 버튼과 새 게임 시작 버튼 포함) */
+.control-box.game-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* 버튼 간 간격 */
+}
+
+/* 버튼 스타일 (홈 버튼과 새 게임 시작 버튼에 모두 적용) */
 .control-box button {
     width: 100%;
     padding: 10px;
-    background-color: #007bff;
-    color: white;
+    background-color: #f0f0f0; /* 홈 버튼 기본색 */
+    color: #252422; 
     border: none;
     border-radius: 5px;
     cursor: pointer;
     font-size: 1em;
-    transition: background-color 0.3s;
+    font-weight: bold;
+    transition: background-color 0.3s, color 0.3s;
 }
 
-.control-box button:hover {
+/* 새 게임 시작 버튼의 색상 강조 (마지막 버튼에 적용) */
+.control-box button:last-child {
+    background-color: #007bff;
+    color: white;
+}
+.control-box button:last-child:hover {
     background-color: #0056b3;
+}
+.control-box button:hover {
+    background-color: #cccccc; /* 일반 버튼 호버 색상 */
 }
 
 /* 플레이어 색상 선택 */
@@ -132,7 +148,7 @@ h1 {
     color: #f0f0f0;
 }
 
-/* 🌟 기물 이동 하이라이트 */
+/* 🌟 기물 이동 하이라이트 (빈 칸) */
 .highlight-dot {
     /* !!! CSS 우선순위 확보를 위해 !important 추가 !!! */
     background-image: radial-gradient(circle, #555 15%, transparent 16%) !important; 
@@ -155,16 +171,15 @@ h1 {
         gap: 20px;
     }
 
-    /* 🌟🌟🌟 수정된 부분: 반응형 최대 크기도 400px -> 500px로 증가 🌟🌟🌟 */
+    /* 체스보드 반응형 최대 크기 700px에서 500px로 축소 */
     #myBoard {
         width: 100%;
         max-width: 500px;
         min-height: initial;
     }
-    /* 🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟 */
 
     .right-panel {
         width: 100%;
-        max-width: 400px;
+        max-width: 500px; /* 컨트롤 패널도 보드 크기에 맞게 조정 */
     }
 }
