@@ -13,6 +13,9 @@ const PIECE_VALUES = {'p': 100, 'n': 300, 'b': 300, 'r': 500, 'q': 900, 'k': 0 }
 const MATERIAL_LOSS_THRESHOLD = -300; 
 let selectedSquare = null; 
 
+// 🌟 기물 헌납 방지 로직을 적용할 최소 레벨
+const MIN_LEVEL_FOR_ANTI_BLUNDER = 15; 
+
 // 경고 메시지를 저장할 변수
 let originalStatusText = '';
 
@@ -25,6 +28,7 @@ function getMaterialLoss(move, currentChess) {
         capturedPieceValue = PIECE_VALUES[move.captured.toLowerCase()] || 0;
     }
     const netValue = capturedPieceValue - movedPieceValue;
+    // 나이트/비숍 이상의 기물을 공짜로 헌납하는 경우 (-300 이하)
     if (!move.captured && movedPieceValue >= PIECE_VALUES['n']) {
         return -301; 
     }
@@ -170,7 +174,7 @@ function onSquareClick(square) {
             return;
         } 
         
-        // 이동 실패 시 경고 시스템
+        // 이동 실패 시 경고 시스템 (불법 수 또는 체크 해소 실패)
         if (chess.in_check()) {
             showTemporaryWarning(`🚫 체크 상태입니다! 킹을 안전하게 이동시키거나 체크를 막는 수를 두세요.`);
         } else {
@@ -284,6 +288,9 @@ function executeEngineMove() {
     const MAX_DIFFICULTY = 30;
     const bestMoveProbability = selectedSkillLevel / MAX_DIFFICULTY;
     
+    // 🌟 기물 헌납 방지 활성화 여부
+    const enableAntiBlunder = (selectedSkillLevel >= MIN_LEVEL_FOR_ANTI_BLUNDER);
+    
     let forceBestMove = chess.in_check() || (lastMoveInfo.scoreType === 'mate' && lastMoveInfo.scoreValue === 1);
     
     if (bestMoveLan && bestMoveLan !== '(none)') { 
@@ -302,10 +309,16 @@ function executeEngineMove() {
             const safeRandomMoves = randomMoves.filter(move => {
                 const tempChess = new Chess(chess.fen());
                 tempChess.move(move.lan, { sloppy: true }); 
+                
+                // 1. 체크메이트 방지 (항상 적용)
                 if (tempChess.in_checkmate()) return false; 
                 
-                const loss = getMaterialLoss(move, chess);
-                if (loss < MATERIAL_LOSS_THRESHOLD) return false; 
+                // 2. 난이도 15 이상일 때만 기물 헌납 방지 로직 적용
+                if (enableAntiBlunder) {
+                    const loss = getMaterialLoss(move, chess);
+                    // 300(나이트/비숍) 이상의 가치를 공짜로 잃는 경우를 방지
+                    if (loss < MATERIAL_LOSS_THRESHOLD) return false; 
+                }
                 
                 return true; 
             });
