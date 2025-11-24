@@ -14,7 +14,6 @@ let lastMoveInfo = {};
 const PIECE_VALUES = {'p': 100, 'n': 300, 'b': 300, 'r': 500, 'q': 900, 'k': 0 };
 const IS_FREE_CAPTURE_THRESHOLD = 100; 
 const EXCHANGE_UP_THRESHOLD = 150; 
-// 🌟🌟🌟 익스체인지 다운 감지를 위해 최소 허용 손실 값을 -150으로 조정했습니다.
 // Rook for Knight (-200), Bishop for Pawn (-200) 손실을 차단합니다.
 const MAX_ACCEPTABLE_LOSS_IN_RANDOM_MOVE = -150; 
 const HIGH_VALUE_PIECE_THRESHOLD = 300; // 나이트, 비숍, 룩, 퀸
@@ -340,7 +339,7 @@ function executeEngineMove() {
             const allMoves = chess.moves({ verbose: true }); 
             const opponentColor = chess.turn() === 'w' ? 'b' : 'w';
             
-            // 🌟🌟🌟 안전한 수 필터링 (익스체인지 다운 감지 최종 강화) 🌟🌟🌟
+            // 🌟🌟🌟 안전한 수 필터링 (블런더 감지 최종 강화) 🌟🌟🌟
             const safeMoves = allMoves.filter(move => {
                 const tempChess = new Chess(chess.fen());
                 const movedPiece = chess.get(move.from);
@@ -365,17 +364,24 @@ function executeEngineMove() {
                         const isAttackedAfterMove = isSquareAttacked(move.to, tempChess, opponentColor);
                         const capturedPieceValue = (PIECE_VALUES[move.captured ? move.captured.toLowerCase() : ''] || 0);
 
-                        // 헌납(Free Loss) 감지: 캡처 없이 나이트/비숍 이상이 공격받는 경우
-                        if (movedPieceValue >= HIGH_VALUE_PIECE_THRESHOLD && isAttackedAfterMove && !move.captured) {
-                            console.log(`BLUNDER DETECTED (FREE LOSS - ${movedPiece.type}): ${move.lan}. 차단됨.`);
-                            return false; 
+                        // 🌟🌟🌟 2.c 치명적인 공짜 헌납 차단 (Nc3 Qd4?? Nxd4 상황) 🌟🌟🌟
+                        // 이동한 기물이 나이트 이상(300 이상)이고, 상대에게 즉시 공격받는데,
+                        // 교환이 없거나 (퀸 헌납), 폰 이하의 기물만 잡은 경우 (룩 헌납)를 차단
+                        if (movedPieceValue >= HIGH_VALUE_PIECE_THRESHOLD && isAttackedAfterMove) {
+                            if (capturedPieceValue < movedPieceValue) {
+                                // 예를 들어, 퀸(900)이 아무것도 안 잡고 공격받거나, 퀸(900)이 나이트(300) 잡고 공격받는 경우
+                                if (capturedPieceValue === 0 || capturedPieceValue <= PIECE_VALUES['p']) {
+                                     console.log(`BLUNDER DETECTED (CRITICAL FREE LOSS - ${movedPiece.type}): ${move.lan}. 차단됨.`);
+                                     return false;
+                                }
+                            }
                         }
-
+                        
                         // 순수 이득 = 잡은 기물 가치 - 움직인 기물 가치
                         let netGain = capturedPieceValue - movedPieceValue;
                         
                         // 익스체인지 다운 (Exchange Down) 감지: 
-                        // 이동이 교환(move.captured)을 포함하거나, 이동 후 기물이 공격받는 상황(isAttackedAfterMove)에서
+                        // 이동이 교환을 포함하거나, 이동 후 기물이 공격받는 상황에서
                         // 순 손실이 MAX_ACCEPTABLE_LOSS_IN_RANDOM_MOVE(-150)보다 클 경우 차단합니다.
                         if (isAttackedAfterMove || move.captured) { 
                             if (netGain < MAX_ACCEPTABLE_LOSS_IN_RANDOM_MOVE) { 
