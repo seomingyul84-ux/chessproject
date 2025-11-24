@@ -14,12 +14,16 @@ let lastMoveInfo = {};
 const PIECE_VALUES = {'p': 100, 'n': 300, 'b': 300, 'r': 500, 'q': 900, 'k': 0 };
 const IS_FREE_CAPTURE_THRESHOLD = 100; 
 const EXCHANGE_UP_THRESHOLD = 150; 
+// 🌟🌟🌟 익스체인지 다운 감지를 위해 최소 허용 손실 값을 -150으로 조정했습니다.
+// Rook for Knight (-200), Bishop for Pawn (-200) 손실을 차단합니다.
+const MAX_ACCEPTABLE_LOSS_IN_RANDOM_MOVE = -150; 
+const HIGH_VALUE_PIECE_THRESHOLD = 300; // 나이트, 비숍, 룩, 퀸
 
 let selectedSquare = null; 
 const MIN_LEVEL_FOR_ANTI_BLUNDER = 15; 
 let originalStatusText = '';
 
-// ... (isSquareAttacked, getNetMaterialGain 함수는 변경 없음) ...
+// 특정 칸이 상대방 기물에 의해 공격받고 있는지 확인하는 함수
 function isSquareAttacked(square, chess, byColor) {
     const pieces = chess.board();
     
@@ -40,6 +44,8 @@ function isSquareAttacked(square, chess, byColor) {
     }
     return false; 
 }
+
+// 이동 시 발생하는 순수 기물 가치 이득을 계산하는 함수
 function getNetMaterialGain(move, currentChess) {
     if (!move.captured) return 0;
 
@@ -49,6 +55,7 @@ function getNetMaterialGain(move, currentChess) {
 
     return capturedPieceValue - movedPieceValue;
 }
+
 // ... (Stockfish 통신 함수들은 변경 없음) ...
 function initStockfish() {
     try {
@@ -107,7 +114,7 @@ function executeUciMove(uciMove) {
     }
 }
 
-// ... (removeHighlights, highlightMoves 함수는 변경 없음) ...
+// ... (UI 관련 함수들은 변경 없음) ...
 function removeHighlights() {
     $('#myBoard .square-55d63').removeClass('highlight-dot highlight-capture'); 
 }
@@ -135,8 +142,6 @@ function showTemporaryWarning(message) {
         }
     }, 2000);
 }
-
-// 🌟 승진 기물 선택 대화 상자 함수 (변경 없음) 🌟
 function showPromotionDialog(from, to) {
     isEngineThinking = true; 
     
@@ -189,17 +194,14 @@ function onSquareClick(square) {
     const piece = chess.get(square);
 
     if (selectedSquare) {
-        // 1. 이동 시도 (우선 퀸 승진으로 시도하여 폰 승진인지 확인)
         let move = null;
         try {
             move = chess.move({ from: selectedSquare, to: square, promotion: 'q' });
         } catch (e) {
-            // 유효하지 않은 이동인 경우 move는 null로 남음.
         }
 
-        // 폰 승진이 필요한 경우
         if (move && move.promotion) {
-            chess.undo(); // 일단 실행된 퀸 승진을 취소
+            chess.undo(); 
             removeHighlights();
             selectedSquare = null;
             
@@ -207,7 +209,6 @@ function onSquareClick(square) {
             return;
         }
 
-        // 일반적인 이동 처리
         if (move) {
             if (playerColor === 'w' && chess.history().length === 1) {
                 setDifficultySliderState(false);
@@ -223,13 +224,10 @@ function onSquareClick(square) {
             return;
         } 
         
-        // 이동 실패 시 경고 시스템 (유효하지 않은 이동 경고는 제거됨)
         if (chess.in_check()) {
             showTemporaryWarning(`🚫 체크 상태입니다! 킹을 안전하게 이동시키거나 체크를 막는 수를 두세요.`);
         } 
-        // ⚠️ "유효하지 않은 이동입니다." 경고는 이 곳에서 제거되었습니다.
         
-        // 2. 다른 기물 선택 시도
         if (piece && piece.color === playerColor) {
             removeHighlights();
             selectedSquare = square;
@@ -237,13 +235,11 @@ function onSquareClick(square) {
             return;
         }
         
-        // 3. 무효한 이동 후 클릭 (선택 해제)
         removeHighlights();
         selectedSquare = null;
         return;
     }
     
-    // 4. 기물 선택 시도
     if (piece && piece.color === playerColor) {
         selectedSquare = square;
         highlightMoves(square);
@@ -254,8 +250,7 @@ function onSquareClick(square) {
 }
 
 
-// ... (handleOpeningMove, computerMove, executeEngineMove 등 나머지 함수는 변경 없음) ...
-
+// ... (handleOpeningMove, computerMove 함수는 변경 없음) ...
 function handleOpeningMove() {
     let moveUci = null;
     const history = chess.history({ verbose: true });
@@ -345,25 +340,48 @@ function executeEngineMove() {
             const allMoves = chess.moves({ verbose: true }); 
             const opponentColor = chess.turn() === 'w' ? 'b' : 'w';
             
+            // 🌟🌟🌟 안전한 수 필터링 (익스체인지 다운 감지 최종 강화) 🌟🌟🌟
             const safeMoves = allMoves.filter(move => {
                 const tempChess = new Chess(chess.fen());
                 const movedPiece = chess.get(move.from);
                 
                 try {
+                    // 승진 수의 경우, 기본값인 퀸(q)으로 승진하여 안전성 검사
                     tempChess.move({ from: move.from, to: move.to, promotion: move.promotion || 'q' }, { sloppy: true }); 
                 } catch (e) {
                     return false;
                 }
                 
+                // 1. 체크메이트 당하는 수 방지 (항상 적용)
                 if (tempChess.in_checkmate()) return false; 
                 
+                // 2. 치명적인 블런더 및 익스체인지 다운 방지 (레벨 15 이상)
                 if (enableAntiBlunder && movedPiece) {
                     const movedPieceValue = PIECE_VALUES[movedPiece.type.toLowerCase()] || 0;
                     
-                    if (movedPieceValue >= PIECE_VALUES['n']) { 
-                        const isAttacked = isSquareAttacked(move.to, tempChess, opponentColor);
-                        if (isAttacked && !move.captured) {
+                    // a. 고가치 기물을 움직이거나 캡처하는 경우만 검토
+                    if (movedPieceValue >= HIGH_VALUE_PIECE_THRESHOLD || move.captured) { 
+                        
+                        const isAttackedAfterMove = isSquareAttacked(move.to, tempChess, opponentColor);
+                        const capturedPieceValue = (PIECE_VALUES[move.captured ? move.captured.toLowerCase() : ''] || 0);
+
+                        // 헌납(Free Loss) 감지: 캡처 없이 나이트/비숍 이상이 공격받는 경우
+                        if (movedPieceValue >= HIGH_VALUE_PIECE_THRESHOLD && isAttackedAfterMove && !move.captured) {
+                            console.log(`BLUNDER DETECTED (FREE LOSS - ${movedPiece.type}): ${move.lan}. 차단됨.`);
                             return false; 
+                        }
+
+                        // 순수 이득 = 잡은 기물 가치 - 움직인 기물 가치
+                        let netGain = capturedPieceValue - movedPieceValue;
+                        
+                        // 익스체인지 다운 (Exchange Down) 감지: 
+                        // 이동이 교환(move.captured)을 포함하거나, 이동 후 기물이 공격받는 상황(isAttackedAfterMove)에서
+                        // 순 손실이 MAX_ACCEPTABLE_LOSS_IN_RANDOM_MOVE(-150)보다 클 경우 차단합니다.
+                        if (isAttackedAfterMove || move.captured) { 
+                            if (netGain < MAX_ACCEPTABLE_LOSS_IN_RANDOM_MOVE) { 
+                                console.log(`BLUNDER DETECTED (EXCHANGE DOWN/LOSS): ${move.lan}, Net Gain: ${netGain}. 차단됨.`);
+                                return false;
+                            }
                         }
                     }
                 }
@@ -374,7 +392,7 @@ function executeEngineMove() {
             let randomMoves = safeMoves.filter(m => m.lan !== bestMoveLan);
             
             
-            // 🌟🌟🌟 3-1. 공짜 기물 캡처 수 찾기 (1순위) 🌟🌟🌟
+            // 3-1. 공짜 기물 캡처 수 찾기 (1순위)
             const freeCaptureMoves = randomMoves.filter(move => {
                 if (!move.captured) return false;
                 if (getNetMaterialGain(move, chess) < IS_FREE_CAPTURE_THRESHOLD) return false;
@@ -389,7 +407,7 @@ function executeEngineMove() {
                 return false; 
             });
 
-            // 🌟🌟🌟 3-2. 익스체인지 업 수 찾기 (2순위) 🌟🌟🌟
+            // 3-2. 익스체인지 업 수 찾기 (2순위)
             const exchangeUpMoves = randomMoves.filter(move => {
                 if (!move.captured) return false;
                 
@@ -442,6 +460,7 @@ function executeEngineMove() {
 }
 
 
+// ... (UI 초기화 및 상태 업데이트 함수들은 변경 없음) ...
 function setDifficultySliderState(isEnabled) {
     const slider = document.getElementById('difficultySlider');
     const levelControlBox = document.getElementById('levelControl');
