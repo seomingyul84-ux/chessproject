@@ -146,7 +146,7 @@ function showPromotionDialog(from, to) {
     
     const promotionPiece = prompt(
         "폰 승진: 어떤 기물로 승진하시겠습니까?\n" +
-        "퀸(q), 룩(r), 비숍(b), 나이트(n) 중 하나를 입력하세요.", 
+        "퀸으로 승진하려면 q, 룩으로 승진하려면 r, 비숍은로 승진하려면 b, 나이트로 승진하려면 n을 입력하세요.", 
         "q" 
     );
 
